@@ -1,250 +1,205 @@
--- [[ The Ultimate Shadow Hub | V1 - Native UI ]] --
--- لا يحتاج إلى إنترنت، مستقر 100%، ويحتوي على جميع الميزات الأسطورية
+-- [[ Project: Phantom Strike | V2 ]] --
+-- ميزات: Tween Teleport, 480 Max Speed/Jump, Native UI
 
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local VirtualUser = game:GetService("VirtualUser")
 local LocalPlayer = Players.LocalPlayer
 
--- حذف الواجهة القديمة إذا تم تشغيل السكريبت مرتين لمنع التكرار
-if CoreGui:FindFirstChild("ShadowHub") then
-    CoreGui.ShadowHub:Destroy()
+-- مسح الواجهة القديمة إذا وجدت
+if CoreGui:FindFirstChild("PhantomHub") then
+    CoreGui.PhantomHub:Destroy()
 end
 
 -- ==========================================
--- 1. بناء الواجهة الاحترافية (UI Construction)
+-- 1. بناء الواجهة (Native UI - No Internet Required)
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ShadowHub"
+ScreenGui.Name = "PhantomHub"
 ScreenGui.Parent = CoreGui
 
--- زر فتح/إغلاق القائمة
-local ToggleMenuBtn = Instance.new("TextButton")
-ToggleMenuBtn.Size = UDim2.new(0, 50, 0, 50)
-ToggleMenuBtn.Position = UDim2.new(0, 20, 0, 20)
-ToggleMenuBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-ToggleMenuBtn.BorderColor3 = Color3.fromRGB(80, 0, 255)
-ToggleMenuBtn.BorderSizePixel = 2
-ToggleMenuBtn.Text = "💀"
-ToggleMenuBtn.TextScaled = true
-ToggleMenuBtn.Parent = ScreenGui
-Instance.new("UICorner", ToggleMenuBtn).CornerRadius = UDim.new(0, 10)
-
--- الإطار الرئيسي للقائمة
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 300, 0, 450)
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -225)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.BorderColor3 = Color3.fromRGB(80, 0, 255)
+MainFrame.Size = UDim2.new(0, 320, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -160, 0.5, -200)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderColor3 = Color3.fromRGB(138, 43, 226) -- لون بنفسجي
 MainFrame.BorderSizePixel = 2
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
--- عنوان القائمة
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundTransparency = 1
-Title.Text = "SHADOW HUB - ULTIMATE"
-Title.TextColor3 = Color3.fromRGB(80, 150, 255)
-Title.TextSize = 18
+Title.Text = "Phantom Hub | Speed & Teleport"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
 Title.Parent = MainFrame
 
--- منطقة التمرير للأزرار (Scroll Frame)
-local ScrollFrame = Instance.new("ScrollingFrame")
-ScrollFrame.Size = UDim2.new(1, -20, 1, -60)
-ScrollFrame.Position = UDim2.new(0, 10, 0, 50)
-ScrollFrame.BackgroundTransparency = 1
-ScrollFrame.ScrollBarThickness = 4
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 600)
-ScrollFrame.Parent = MainFrame
+local Scroll = Instance.new("ScrollingFrame")
+Scroll.Size = UDim2.new(1, -20, 1, -50)
+Scroll.Position = UDim2.new(0, 10, 0, 45)
+Scroll.BackgroundTransparency = 1
+Scroll.ScrollBarThickness = 5
+Scroll.CanvasSize = UDim2.new(0, 0, 0, 500)
+Scroll.Parent = MainFrame
 
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Parent = ScrollFrame
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 10)
+local Layout = Instance.new("UIListLayout")
+Layout.Parent = Scroll
+Layout.Padding = UDim.new(0, 10)
 
--- برمجة زر الفتح والإغلاق
-local menuOpen = true
-ToggleMenuBtn.MouseButton1Click:Connect(function()
-    menuOpen = not menuOpen
-    MainFrame.Visible = menuOpen
-end)
-
--- ==========================================
--- 2. نظام المتغيرات والميزات (Features Logic)
--- ==========================================
-_G.Settings = {
-    AutoFarm = false,
-    AutoWin = false,
-    AutoRebirth = false,
-    AntiAFK = false,
-    Noclip = false,
-    AntiLag = false
-}
-
--- دالة لإنشاء أزرار التفعيل (Toggles)
-local function CreateToggle(name, text, callback)
-    local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, 0, 0, 40)
-    Btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    Btn.Text = text .. " [OFF]"
-    Btn.TextColor3 = Color3.fromRGB(255, 80, 80)
-    Btn.Font = Enum.Font.GothamSemibold
-    Btn.TextSize = 14
-    Btn.Parent = ScrollFrame
-    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
-
-    Btn.MouseButton1Click:Connect(function()
-        _G.Settings[name] = not _G.Settings[name]
-        if _G.Settings[name] then
-            Btn.Text = text .. " [ON]"
-            Btn.TextColor3 = Color3.fromRGB(80, 255, 80)
-        else
-            Btn.Text = text .. " [OFF]"
-            Btn.TextColor3 = Color3.fromRGB(255, 80, 80)
+-- دالة إنشاء شريط تمرير (Slider)
+local function CreateSlider(name, maxVal, callback)
+    local Frame = Instance.new("Frame", Scroll)
+    Frame.Size = UDim2.new(1, 0, 0, 50)
+    Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 5)
+    
+    local Label = Instance.new("TextLabel", Frame)
+    Label.Size = UDim2.new(0.5, 0, 0, 20)
+    Label.Position = UDim2.new(0.05, 0, 0, 5)
+    Label.BackgroundTransparency = 1
+    Label.Text = name .. ": 16"
+    Label.TextColor3 = Color3.new(1,1,1)
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local TextBox = Instance.new("TextBox", Frame)
+    TextBox.Size = UDim2.new(0.3, 0, 0, 20)
+    TextBox.Position = UDim2.new(0.65, 0, 0, 5)
+    TextBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    TextBox.TextColor3 = Color3.new(1,1,1)
+    TextBox.Text = "16"
+    Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 4)
+    
+    local SliderBg = Instance.new("TextButton", Frame)
+    SliderBg.Size = UDim2.new(0.9, 0, 0, 10)
+    SliderBg.Position = UDim2.new(0.05, 0, 0, 35)
+    SliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    SliderBg.Text = ""
+    Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(1, 0)
+    
+    local Fill = Instance.new("Frame", SliderBg)
+    Fill.Size = UDim2.new(0, 0, 1, 0)
+    Fill.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
+    Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
+    
+    local function UpdateVal(val)
+        val = math.clamp(tonumber(val) or 16, 16, maxVal)
+        TextBox.Text = tostring(math.floor(val))
+        Label.Text = name .. ": " .. tostring(math.floor(val))
+        Fill.Size = UDim2.new((val - 16) / (maxVal - 16), 0, 1, 0)
+        callback(val)
+    end
+    
+    TextBox.FocusLost:Connect(function() UpdateVal(TextBox.Text) end)
+    
+    local dragging = false
+    SliderBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true end
+    end)
+    game:GetService("UserInputService").InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local pos = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
+            UpdateVal(16 + (pos * (maxVal - 16)))
         end
-        callback(_G.Settings[name])
     end)
 end
 
--- دالة لإنشاء أزرار المهام الفردية (Buttons)
-local function CreateAction(text, callback)
-    local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, 0, 0, 40)
-    Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+-- دالة لإنشاء زر (Button)
+local function CreateButton(text, callback)
+    local Btn = Instance.new("TextButton", Scroll)
+    Btn.Size = UDim2.new(1, 0, 0, 35)
+    Btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     Btn.Text = text
-    Btn.TextColor3 = Color3.new(1, 1, 1)
+    Btn.TextColor3 = Color3.new(1,1,1)
     Btn.Font = Enum.Font.GothamSemibold
-    Btn.TextSize = 14
-    Btn.Parent = ScrollFrame
-    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 5)
     Btn.MouseButton1Click:Connect(callback)
 end
 
 -- ==========================================
--- 3. الميزات الأسطورية (Legendary Features)
+-- 2. الميزات والتحكم (Features Logic)
 -- ==========================================
 
--- ميزة 1: الاستحواذ على جميع السرعات في الخريطة (Mass Farm)
-CreateToggle("AutoFarm", "⚡ تجميع السرعة الشامل", function(state)
-    task.spawn(function()
-        while _G.Settings.AutoFarm do
-            task.wait(0.1)
-            pcall(function()
-                local Root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if Root then
-                    for _, item in pairs(workspace:GetDescendants()) do
-                        if item:IsA("TouchTransmitter") and item.Parent then
-                            local n = item.Parent.Name:lower()
-                            if n:match("speed") or n:match("key") or n:match("part") then
-                                firetouchinterest(Root, item.Parent, 0)
-                                firetouchinterest(Root, item.Parent, 1)
-                            end
-                        end
-                    end
-                end
-            end)
+_G.CharSpeed = 16
+_G.CharJump = 50
+_G.Noclip = true -- تفعيل دائم لتفادي العوائق
+
+-- الحفاظ على السرعة والقفز بشكل دائم (حتى لو غيرتها اللعبة)
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = _G.CharSpeed
+            char.Humanoid.JumpPower = _G.CharJump
         end
-    end)
-end)
-
--- ميزة 2: الانتقال التلقائي للفوز واحتكار الجوائز (Auto Win)
-CreateToggle("AutoWin", "🏆 احتكار الانتصارات", function(state)
-    task.spawn(function()
-        while _G.Settings.AutoWin do
-            task.wait(0.5)
-            pcall(function()
-                local Root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if Root then
-                    for _, obj in pairs(workspace:GetDescendants()) do
-                        if obj:IsA("Part") or obj:IsA("MeshPart") then
-                            local n = obj.Name:lower()
-                            if n:match("win") or n:match("end") or n:match("finish") then
-                                Root.CFrame = obj.CFrame * CFrame.new(0, 2, 0)
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end)
-end)
-
--- ميزة 3: اختراق الجدران والبيئة (Noclip)
-CreateToggle("Noclip", "👻 اختراق الجدران (Noclip)", function(state)
-    RunService.Stepped:Connect(function()
-        if _G.Settings.Noclip then
-            pcall(function()
-                if LocalPlayer.Character then
-                    for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = false
-                        end
-                    end
-                end
-            end)
-        end
-    end)
-end)
-
--- ميزة 4: التوليد التلقائي الشامل (Auto Rebirth)
-CreateToggle("AutoRebirth", "🔥 توليد تلقائي (Rebirth)", function(state)
-    task.spawn(function()
-        while _G.Settings.AutoRebirth do
-            task.wait(1)
-            pcall(function()
-                -- يقوم بالبحث عن أي حدث Rebirth في اللعبة وتفعيله
-                for _, remote in pairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
-                    if remote:IsA("RemoteEvent") and remote.Name:lower():match("rebirth") then
-                        remote:FireServer()
-                    end
-                end
-            end)
-        end
-    end)
-end)
-
--- ميزة 5: منع الطرد من السيرفر (Anti-AFK)
-CreateToggle("AntiAFK", "🛡️ حماية من الطرد (Anti-AFK)", function(state)
-    if state then
-        LocalPlayer.Idled:Connect(function()
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new())
-        end)
-    end
-end)
-
--- ميزة 6: تقليل اللاق وزيادة الفريمات (Anti-Lag FPS Boost)
-CreateToggle("AntiLag", "🚀 تدمير اللاق (FPS Boost)", function(state)
-    if state then
-        pcall(function()
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if obj:IsA("Texture") or obj:IsA("Decal") then
-                    obj:Destroy()
+        -- نظام Noclip لتفادي الجدران
+        if _G.Noclip and char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
                 end
             end
-            game.Lighting.GlobalShadows = false
-            game.Lighting.FogEnd = 9e9
-            settings().Rendering.QualityLevel = 1
-        end)
-    end
-end)
-
--- ميزة 7: تعديل سرعة اللاعب وقوة القفز يدوياً (Player Mods)
-CreateAction("🏃 تفعيل سرعة خارقة يدوياً", function()
-    pcall(function()
-        LocalPlayer.Character.Humanoid.WalkSpeed = 250
-        LocalPlayer.Character.Humanoid.JumpPower = 150
+        end
     end)
 end)
 
-CreateAction("🔄 إعادة ضبط سرعة اللاعب", function()
+-- شريط التحكم بالسرعة (حتى 480)
+CreateSlider("Speed", 480, function(val)
+    _G.CharSpeed = val
+end)
+
+-- شريط التحكم بالقفز (حتى 480)
+CreateSlider("Jump", 480, function(val)
+    _G.CharJump = val
+end)
+
+-- ==========================================
+-- 3. نظام الانتقال الآمن (Tween Teleport / Bring)
+-- ==========================================
+-- هذه الدالة تقوم بتحريك اللاعب كأنه يطير بسرعة فائقة لتجنب كشف الـ Anti-Cheat
+local function TweenTo(targetCFrame, duration)
     pcall(function()
-        LocalPlayer.Character.Humanoid.WalkSpeed = 16
-        LocalPlayer.Character.Humanoid.JumpPower = 50
+        local Root = LocalPlayer.Character.HumanoidRootPart
+        local info = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+        local tween = TweenService:Create(Root, info, {CFrame = targetCFrame})
+        tween:Play()
+    end)
+end
+
+CreateButton("🚀 تجميع الجوائز الآمن (Tween Farm)", function()
+    task.spawn(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("Part") and obj.Name:lower():match("win") then
+                -- يحسب المسافة للتحكم بسرعة الانزلاق
+                local dist = (LocalPlayer.Character.HumanoidRootPart.Position - obj.Position).Magnitude
+                local timeToReach = dist / 200 -- كلما زاد الرقم كان أسرع
+                TweenTo(obj.CFrame * CFrame.new(0, 2, 0), timeToReach)
+                task.wait(timeToReach + 0.1) -- ينتظر حتى يصل قبل الذهاب للتالي
+            end
+        end
+    end)
+end)
+
+CreateButton("⚡ جمع كل السرعات في الخريطة", function()
+    task.spawn(function()
+        pcall(function()
+            local Root = LocalPlayer.Character.HumanoidRootPart
+            for _, item in pairs(workspace:GetDescendants()) do
+                if item:IsA("TouchTransmitter") then
+                    local pName = item.Parent.Name:lower()
+                    if pName:match("speed") or pName:match("key") then
+                        firetouchinterest(Root, item.Parent, 0)
+                        firetouchinterest(Root, item.Parent, 1)
+                    end
+                end
+            end
+        end)
     end)
 end)
