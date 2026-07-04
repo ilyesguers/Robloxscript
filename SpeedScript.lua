@@ -1,4 +1,4 @@
--- [[ Shadow Hub V5 | Ultimate Bypass & Mobile Fix ]] --
+-- [[ Shadow Hub V5.6 | Ultimate Bypass & Mobile Fix ]] --
 -- المطور: Zero 👾 | مخصص لمختبر إلياس السري
 
 local CoreGui = game:GetService("CoreGui")
@@ -54,7 +54,7 @@ Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 10)
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -40, 1, 0)
 Title.BackgroundTransparency = 1
-Title.Text = " Shadow Hub V5 | Bypass"
+Title.Text = " Shadow Hub V5.6 | Safe Arc"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 16
@@ -190,7 +190,7 @@ local function CreateSlider(name, maxVal, callback)
 end
 
 -- ==========================================
--- 4. المتغيرات وأنظمة تخطي الحماية (Bypass Logic)
+-- 4. محرك السلامة والتخطي (Bypass & Arc)
 -- ==========================================
 _G.CharSpeed = 16
 _G.CharJump = 50
@@ -211,25 +211,24 @@ local function CleanHazards()
     end
 end
 
--- نظام القوس لمنع الـ Kick
+-- دالة القوس (Arc) لتفادي الـ Kick
 local function SafeTeleport(targetCFrame)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local root = char.HumanoidRootPart
     local startPos = root.CFrame.Position
     local endPos = targetCFrame.Position
-    local midPos = (startPos + endPos) / 2 + Vector3.new(0, 30, 0) -- يرتفع للسماء لتفادي الأفخاخ
+    local midPos = (startPos + endPos) / 2 + Vector3.new(0, 30, 0) 
 
     for i = 0, 1, 0.05 do
         local p = (1-i)^2 * startPos + 2*(1-i)*i * midPos + i^2 * endPos
         root.CFrame = CFrame.new(p)
         task.wait(0.02)
     end
-    char.Humanoid:ChangeState(Enum.HumanoidStateType.Running) -- تأكيد ملامسة الأرض
+    char.Humanoid:ChangeState(Enum.HumanoidStateType.Running)
     root.CFrame = targetCFrame
 end
 
--- تطبيق السرعة وتنظيف الفخاخ
 RunService.Stepped:Connect(function()
     pcall(function()
         local char = LocalPlayer.Character
@@ -262,7 +261,7 @@ CreateToggle("🏆 إكمال الباركور وتخطي العوائق", funct
                         local name = obj.Name:lower()
                         if name:match("win") or name:match("end") or name:match("reward") or obj.BrickColor.Name == "New Yeller" then
                             SafeTeleport(obj.CFrame * CFrame.new(0, 3, 0))
-                            task.wait(1.5) -- انتظار أطول لضمان تسجيل السيرفر
+                            task.wait(1.5)
                         end
                     end
                 end
@@ -314,4 +313,4 @@ CreateToggle("🟡 انتقال مباشر للكرات المتساقطة", fun
     end)
 end)
 
-print("Shadow Elite V5 Initialized - Zero 👾 Bypass Active")
+print("Shadow Hub V5.6 Initialized - Zero 👾 Bypass Active")
