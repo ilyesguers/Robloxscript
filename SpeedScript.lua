@@ -1,35 +1,39 @@
--- [[ Shadow Hub V4 | Elite Edition - Anti Ban & Auto Farm ]] --
+-- [[ Shadow Hub V5 | Ultimate Bypass & Mobile Fix ]] --
+-- المطور: Zero 👾 | مخصص لمختبر إلياس السري
 
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- مسح الواجهة القديمة لتجنب التكرار
-if CoreGui:FindFirstChild("ShadowEliteV4") then
-    CoreGui.ShadowEliteV4:Destroy()
+-- مسح أي واجهة قديمة
+if CoreGui:FindFirstChild("ShadowEliteV5") then
+    CoreGui.ShadowEliteV5:Destroy()
 end
 
 -- ==========================================
--- 1. بناء الواجهة (GUI)
+-- 1. بناء الواجهة الاحترافية (GUI)
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ShadowEliteV4"
+ScreenGui.Name = "ShadowEliteV5"
 ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 
--- زر 👽 المخفي
+-- زر 👽 (تم إصلاح التحريك للهواتف)
 local AlienBtn = Instance.new("TextButton")
-AlienBtn.Size = UDim2.new(0, 50, 0, 50)
+AlienBtn.Size = UDim2.new(0, 55, 0, 55)
 AlienBtn.Position = UDim2.new(0.1, 0, 0.1, 0)
 AlienBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+AlienBtn.BorderColor3 = Color3.fromRGB(0, 255, 150)
+AlienBtn.BorderSizePixel = 2
 AlienBtn.Text = "👽"
 AlienBtn.TextScaled = true
 AlienBtn.Parent = ScreenGui
 Instance.new("UICorner", AlienBtn).CornerRadius = UDim.new(1, 0)
 
--- القائمة الرئيسية
+-- الإطار الرئيسي
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 350, 0, 480)
 MainFrame.Position = UDim2.new(0.5, -175, 0.5, -240)
@@ -40,106 +44,113 @@ MainFrame.Visible = false
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
--- شريط العنوان
+-- شريط العنوان للتحريك
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 40)
+TopBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+TopBar.Parent = MainFrame
+Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 10)
+
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Size = UDim2.new(1, -40, 1, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "Shadow Hub V4 | Elite Anti-Ban"
+Title.Text = " Shadow Hub V5 | Bypass"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 16
-Title.Parent = MainFrame
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TopBar
 
--- زر الإغلاق X
+-- زر X لإغلاق القائمة
 local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Position = UDim2.new(1, -35, 0, 5)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+CloseBtn.Size = UDim2.new(0, 35, 0, 35)
+CloseBtn.Position = UDim2.new(1, -40, 0, 2)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 40, 40)
 CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.new(1, 1, 1)
 CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.Parent = MainFrame
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 5)
+CloseBtn.TextSize = 18
+CloseBtn.Parent = TopBar
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
 
+-- حاوية الأزرار
 local Scroll = Instance.new("ScrollingFrame")
 Scroll.Size = UDim2.new(1, -20, 1, -50)
 Scroll.Position = UDim2.new(0, 10, 0, 45)
 Scroll.BackgroundTransparency = 1
-Scroll.ScrollBarThickness = 4
-Scroll.CanvasSize = UDim2.new(0, 0, 0, 700)
+Scroll.ScrollBarThickness = 5
+Scroll.CanvasSize = UDim2.new(0, 0, 0, 600)
 Scroll.Parent = MainFrame
 
 local Layout = Instance.new("UIListLayout")
 Layout.Parent = Scroll
-Layout.Padding = UDim.new(0, 12)
+Layout.Padding = UDim.new(0, 10)
 
 -- ==========================================
--- 2. أنظمة السحب والتفاعل (Dragging Logic)
+-- 2. نظام التحريك المخصص للهواتف (Delta Fix)
 -- ==========================================
-local function MakeDraggable(gui)
-    local dragging, dragInput, dragStart, startPos
-    gui.InputBegan:Connect(function(input)
+local function MakeMobileDraggable(dragPart, movePart)
+    local dragging = false
+    local dragInput, mousePos, framePos
+
+    dragPart.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
-            dragStart = input.Position
-            startPos = gui.Position
-        end
-    end)
-    gui.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
+            mousePos = input.Position
+            framePos = movePart.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
         end
     end)
     UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
     end)
-    gui.Changed:Connect(function(prop)
-        if prop == "AbsolutePosition" then dragInput = UserInputService:GetLastInputType() end
+    RunService.RenderStepped:Connect(function()
+        if dragging and dragInput then
+            local delta = dragInput.Position - mousePos
+            movePart.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+        end
     end)
 end
 
-MakeDraggable(AlienBtn)
-MakeDraggable(MainFrame)
+MakeMobileDraggable(AlienBtn, AlienBtn) -- جعل الزر الفضائي يتحرك
+MakeMobileDraggable(TopBar, MainFrame)  -- جعل النافذة تتحرك من الشريط العلوي
 
 AlienBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
 
 -- ==========================================
--- 3. دوال الأزرار المتقدمة (ON / OFF Toggles)
+-- 3. بناء الأزرار التفاعلية (ON/OFF)
 -- ==========================================
 local function CreateToggle(text, callback)
     local state = false
     local Btn = Instance.new("TextButton", Scroll)
     Btn.Size = UDim2.new(1, 0, 0, 45)
-    Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    Btn.Text = "[OFF] " .. text
-    Btn.TextColor3 = Color3.new(1,1,1)
+    Btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50) -- لون رمادي (OFF)
+    Btn.Text = "❌ [OFF] " .. text
+    Btn.TextColor3 = Color3.new(1, 1, 1)
     Btn.Font = Enum.Font.GothamBold
-    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 8)
     
     Btn.MouseButton1Click:Connect(function()
         state = not state
         if state then
-            Btn.BackgroundColor3 = Color3.fromRGB(0, 150, 50)
-            Btn.Text = "[ON] " .. text
+            Btn.BackgroundColor3 = Color3.fromRGB(0, 180, 80) -- أخضر (ON)
+            Btn.Text = "✅ [ON] " .. text
         else
-            Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-            Btn.Text = "[OFF] " .. text
+            Btn.BackgroundColor3 = Color3.fromRGB(220, 50, 50) -- أحمر (OFF)
+            Btn.Text = "❌ [OFF] " .. text
         end
         callback(state)
     end)
-    return Btn
 end
 
 local function CreateSlider(name, maxVal, callback)
     local Frame = Instance.new("Frame", Scroll)
     Frame.Size = UDim2.new(1, 0, 0, 50)
-    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 6)
-    
+    Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
     local Label = Instance.new("TextLabel", Frame)
     Label.Size = UDim2.new(1, -10, 0, 20)
     Label.Position = UDim2.new(0, 10, 0, 5)
@@ -147,19 +158,16 @@ local function CreateSlider(name, maxVal, callback)
     Label.Text = name .. ": 16"
     Label.TextColor3 = Color3.new(1,1,1)
     Label.TextXAlignment = Enum.TextXAlignment.Left
-    
     local SliderBg = Instance.new("TextButton", Frame)
     SliderBg.Size = UDim2.new(0.9, 0, 0, 10)
     SliderBg.Position = UDim2.new(0.05, 0, 0, 30)
-    SliderBg.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    SliderBg.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
     SliderBg.Text = ""
     Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(1, 0)
-    
     local Fill = Instance.new("Frame", SliderBg)
     Fill.Size = UDim2.new(0, 0, 1, 0)
     Fill.BackgroundColor3 = Color3.fromRGB(150, 0, 255)
     Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
-    
     local dragging = false
     local function UpdateVal(input)
         local pos = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
@@ -168,7 +176,6 @@ local function CreateSlider(name, maxVal, callback)
         Fill.Size = UDim2.new(pos, 0, 1, 0)
         callback(val)
     end
-    
     SliderBg.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true; UpdateVal(input)
@@ -183,21 +190,28 @@ local function CreateSlider(name, maxVal, callback)
 end
 
 -- ==========================================
--- 4. الأنظمة الأساسية (Features Logic)
+-- 4. المتغيرات وأنظمة تخطي الحماية (Bypass Logic)
 -- ==========================================
 _G.CharSpeed = 16
 _G.CharJump = 50
+_G.AutoWin = false
 _G.AutoKeys = false
 _G.AutoOrbs = false
-_G.SafeAutoRun = false
 
--- تطبيق السرعة بشكل متكرر
+-- تطبيق السرعة بشكل منتظم
 RunService.Stepped:Connect(function()
     pcall(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") then
             char.Humanoid.WalkSpeed = _G.CharSpeed
             char.Humanoid.JumpPower = _G.CharJump
+            
+            -- تفعيل الـ Noclip (اختراق الجدران) فقط أثناء تشغيل الميزات التلقائية لتفادي الأفخاخ
+            if _G.AutoWin or _G.AutoKeys or _G.AutoOrbs then
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
+                end
+            end
         end
     end)
 end)
@@ -205,22 +219,62 @@ end)
 CreateSlider("🏃 Speed Limit (آمن)", 480, function(val) _G.CharSpeed = val end)
 CreateSlider("⬆️ Jump Limit", 480, function(val) _G.CharJump = val end)
 
--- نظام سحب المفاتيح الذهبية عن بعد (مضاد للحظر)
-CreateToggle("🔑 صيد المفاتيح الذهبية (عن بعد)", function(state)
+-- دالة الطيران الآمن (Bypass Rubberbanding)
+-- هذه الدالة تحسب المسافة وتطير بك بسرعة آمنة لا يكتشفها السيرفر!
+local function SafeTeleport(targetCFrame)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local root = char.HumanoidRootPart
+    
+    local dist = (root.Position - targetCFrame.Position).Magnitude
+    local speed = 250 -- سرعة الطيران (آمنة للسيرفر)
+    local timeToReach = dist / speed
+    
+    local info = TweenInfo.new(timeToReach, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(root, info, {CFrame = targetCFrame})
+    tween:Play()
+    tween.Completed:Wait() -- ينتظر حتى يصل بأمان
+end
+
+-- ميزة 1: إكمال الباركور وتخطي العوائق (Auto Win)
+CreateToggle("🏆 إكمال الباركور وتخطي العوائق", function(state)
+    _G.AutoWin = state
+    task.spawn(function()
+        while _G.AutoWin do
+            task.wait(0.5)
+            pcall(function()
+                -- البحث عن المربعات الصفراء أو منصات الفوز (Wins)
+                for _, obj in pairs(workspace:GetDescendants()) do
+                    if not _G.AutoWin then break end
+                    if obj:IsA("Part") or obj:IsA("MeshPart") then
+                        local name = obj.Name:lower()
+                        if name:match("win") or name:match("end") or name:match("reward") or obj.BrickColor.Name == "New Yeller" then
+                            -- يطير فوق العوالم متفادياً الباركور ويهبط على منصة الفوز
+                            SafeTeleport(obj.CFrame * CFrame.new(0, 3, 0))
+                            task.wait(0.2)
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+end)
+
+-- ميزة 2: الطيران المباشر للمفاتيح الذهبية
+CreateToggle("🔑 انتقال مباشر للمفاتيح الذهبية", function(state)
     _G.AutoKeys = state
     task.spawn(function()
         while _G.AutoKeys do
-            task.wait(0.5)
+            task.wait(1)
             pcall(function()
-                local Root = LocalPlayer.Character.HumanoidRootPart
                 for _, obj in pairs(workspace:GetDescendants()) do
-                    if obj:IsA("BasePart") and obj:FindFirstChildWhichIsA("TouchTransmitter") then
+                    if not _G.AutoKeys then break end
+                    if obj:IsA("BasePart") then
                         local name = obj.Name:lower()
-                        -- استهداف المفاتيح دون الحاجة للطيران إليها
-                        if name:match("key") or name:match("golden") or name:match("special") or name:match("secret") then
-                            firetouchinterest(Root, obj, 0)
-                            task.wait(0.05)
-                            firetouchinterest(Root, obj, 1)
+                        if name:match("key") or name:match("golden") or name:match("secret") then
+                            -- ينتقل ويقف مباشرة أمامه بـ 3 خطوات (كما طلبت)
+                            SafeTeleport(obj.CFrame * CFrame.new(0, 0, -3))
+                            task.wait(0.5) -- ينتظر ليتم تسجيل أخذ المفتاح
                         end
                     end
                 end
@@ -229,21 +283,20 @@ CreateToggle("🔑 صيد المفاتيح الذهبية (عن بعد)", functi
     end)
 end)
 
--- نظام سحب الكرات الصفراء
-CreateToggle("🟡 مغناطيس الكرات المتساقطة", function(state)
+-- ميزة 3: الطيران المباشر للكرات
+CreateToggle("🟡 انتقال مباشر للكرات المتساقطة", function(state)
     _G.AutoOrbs = state
     task.spawn(function()
         while _G.AutoOrbs do
-            task.wait(0.2)
+            task.wait(0.5)
             pcall(function()
-                local Root = LocalPlayer.Character.HumanoidRootPart
                 for _, obj in pairs(workspace:GetDescendants()) do
+                    if not _G.AutoOrbs then break end
                     if obj:IsA("BasePart") and obj:FindFirstChildWhichIsA("TouchTransmitter") then
                         local name = obj.Name:lower()
                         if name:match("orb") or obj.Material == Enum.Material.Neon then
-                            firetouchinterest(Root, obj, 0)
-                            task.wait(0.01)
-                            firetouchinterest(Root, obj, 1)
+                            -- يطير مباشرة للكرة ويلمسها
+                            SafeTeleport(obj.CFrame)
                         end
                     end
                 end
@@ -252,27 +305,4 @@ CreateToggle("🟡 مغناطيس الكرات المتساقطة", function(sta
     end)
 end)
 
--- نظام الجري التلقائي للتقدم في العوالم
-CreateToggle("🚶‍♂️ المشي التلقائي الآمن (اختراق العوالم)", function(state)
-    _G.SafeAutoRun = state
-    task.spawn(function()
-        while _G.SafeAutoRun do
-            task.wait()
-            pcall(function()
-                local char = LocalPlayer.Character
-                local hum = char.Humanoid
-                local root = char.HumanoidRootPart
-                
-                -- إجبار الشخصية على الجري للأمام باستمرار لاختراق المراحل
-                hum:Move(Vector3.new(0, 0, -1), true)
-                
-                -- القفز التلقائي في حال الاصطدام بعائق
-                if hum.MoveDirection.Magnitude < 0.1 then
-                    hum.Jump = true
-                end
-            end)
-        end
-    end)
-end)
-
-print("Shadow Elite V4 Initialized - By Zero 👾")
+print("Shadow Elite V5 Initialized - Zero 👾 Bypass Active")
