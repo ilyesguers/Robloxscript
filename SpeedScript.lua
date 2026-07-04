@@ -198,16 +198,46 @@ _G.AutoWin = false
 _G.AutoKeys = false
 _G.AutoOrbs = false
 
--- تطبيق السرعة بشكل منتظم
+-- تفعيل إزالة الفخاخ والوحوش لمنع الموت
+local function CleanHazards()
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local n = obj.Name:lower()
+            if n:match("lava") or n:match("kill") or n:match("trap") or n:match("spike") then
+                obj.CanCollide = false
+                obj.Transparency = 0.5
+            end
+        end
+    end
+end
+
+-- نظام القوس لمنع الـ Kick
+local function SafeTeleport(targetCFrame)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local root = char.HumanoidRootPart
+    local startPos = root.CFrame.Position
+    local endPos = targetCFrame.Position
+    local midPos = (startPos + endPos) / 2 + Vector3.new(0, 30, 0) -- يرتفع للسماء لتفادي الأفخاخ
+
+    for i = 0, 1, 0.05 do
+        local p = (1-i)^2 * startPos + 2*(1-i)*i * midPos + i^2 * endPos
+        root.CFrame = CFrame.new(p)
+        task.wait(0.02)
+    end
+    char.Humanoid:ChangeState(Enum.HumanoidStateType.Running) -- تأكيد ملامسة الأرض
+    root.CFrame = targetCFrame
+end
+
+-- تطبيق السرعة وتنظيف الفخاخ
 RunService.Stepped:Connect(function()
     pcall(function()
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") then
             char.Humanoid.WalkSpeed = _G.CharSpeed
             char.Humanoid.JumpPower = _G.CharJump
-            
-            -- تفعيل الـ Noclip (اختراق الجدران) فقط أثناء تشغيل الميزات التلقائية لتفادي الأفخاخ
             if _G.AutoWin or _G.AutoKeys or _G.AutoOrbs then
+                CleanHazards()
                 for _, part in pairs(char:GetDescendants()) do
                     if part:IsA("BasePart") then part.CanCollide = false end
                 end
@@ -219,23 +249,6 @@ end)
 CreateSlider("🏃 Speed Limit (آمن)", 480, function(val) _G.CharSpeed = val end)
 CreateSlider("⬆️ Jump Limit", 480, function(val) _G.CharJump = val end)
 
--- دالة الطيران الآمن (Bypass Rubberbanding)
--- هذه الدالة تحسب المسافة وتطير بك بسرعة آمنة لا يكتشفها السيرفر!
-local function SafeTeleport(targetCFrame)
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local root = char.HumanoidRootPart
-    
-    local dist = (root.Position - targetCFrame.Position).Magnitude
-    local speed = 250 -- سرعة الطيران (آمنة للسيرفر)
-    local timeToReach = dist / speed
-    
-    local info = TweenInfo.new(timeToReach, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(root, info, {CFrame = targetCFrame})
-    tween:Play()
-    tween.Completed:Wait() -- ينتظر حتى يصل بأمان
-end
-
 -- ميزة 1: إكمال الباركور وتخطي العوائق (Auto Win)
 CreateToggle("🏆 إكمال الباركور وتخطي العوائق", function(state)
     _G.AutoWin = state
@@ -243,15 +256,13 @@ CreateToggle("🏆 إكمال الباركور وتخطي العوائق", funct
         while _G.AutoWin do
             task.wait(0.5)
             pcall(function()
-                -- البحث عن المربعات الصفراء أو منصات الفوز (Wins)
                 for _, obj in pairs(workspace:GetDescendants()) do
                     if not _G.AutoWin then break end
                     if obj:IsA("Part") or obj:IsA("MeshPart") then
                         local name = obj.Name:lower()
                         if name:match("win") or name:match("end") or name:match("reward") or obj.BrickColor.Name == "New Yeller" then
-                            -- يطير فوق العوالم متفادياً الباركور ويهبط على منصة الفوز
                             SafeTeleport(obj.CFrame * CFrame.new(0, 3, 0))
-                            task.wait(0.2)
+                            task.wait(1.5) -- انتظار أطول لضمان تسجيل السيرفر
                         end
                     end
                 end
@@ -272,9 +283,8 @@ CreateToggle("🔑 انتقال مباشر للمفاتيح الذهبية", fun
                     if obj:IsA("BasePart") then
                         local name = obj.Name:lower()
                         if name:match("key") or name:match("golden") or name:match("secret") then
-                            -- ينتقل ويقف مباشرة أمامه بـ 3 خطوات (كما طلبت)
                             SafeTeleport(obj.CFrame * CFrame.new(0, 0, -3))
-                            task.wait(0.5) -- ينتظر ليتم تسجيل أخذ المفتاح
+                            task.wait(0.5)
                         end
                     end
                 end
@@ -295,7 +305,6 @@ CreateToggle("🟡 انتقال مباشر للكرات المتساقطة", fun
                     if obj:IsA("BasePart") and obj:FindFirstChildWhichIsA("TouchTransmitter") then
                         local name = obj.Name:lower()
                         if name:match("orb") or obj.Material == Enum.Material.Neon then
-                            -- يطير مباشرة للكرة ويلمسها
                             SafeTeleport(obj.CFrame)
                         end
                     end
