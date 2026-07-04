@@ -1,117 +1,143 @@
--- [[ Shadow Hub V3 | Elite Edition - Safe Run & Event Sniper ]] --
+-- [[ Shadow Hub V4 | Elite Edition - Anti Ban & Auto Farm ]] --
 
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 -- مسح الواجهة القديمة لتجنب التكرار
-if CoreGui:FindFirstChild("ShadowEliteV3") then
-    CoreGui.ShadowEliteV3:Destroy()
+if CoreGui:FindFirstChild("ShadowEliteV4") then
+    CoreGui.ShadowEliteV4:Destroy()
 end
 
 -- ==========================================
--- 1. بناء واجهة زر 👽 السري (Draggable Toggle)
+-- 1. بناء الواجهة (GUI)
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ShadowEliteV3"
+ScreenGui.Name = "ShadowEliteV4"
 ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
 
+-- زر 👽 المخفي
 local AlienBtn = Instance.new("TextButton")
 AlienBtn.Size = UDim2.new(0, 50, 0, 50)
-AlienBtn.Position = UDim2.new(0.5, -25, 0.1, 0)
-AlienBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+AlienBtn.Position = UDim2.new(0.1, 0, 0.1, 0)
+AlienBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 AlienBtn.Text = "👽"
 AlienBtn.TextScaled = true
 AlienBtn.Parent = ScreenGui
-Instance.new("UICorner", AlienBtn).CornerRadius = UDim.new(1, 0) -- زر دائري
+Instance.new("UICorner", AlienBtn).CornerRadius = UDim.new(1, 0)
 
--- نظام تحريك زر 👽 (Dragging Logic)
-local dragging, dragInput, dragStart, startPos
-AlienBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = AlienBtn.Position
-    end
-end)
-AlienBtn.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        AlienBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-AlienBtn.Changed:Connect(function(prop)
-    if prop == "AbsolutePosition" then dragInput = UserInputService:GetLastInputType() end
-end)
-
--- ==========================================
--- 2. بناء القائمة الرئيسية (Main Menu)
--- ==========================================
+-- القائمة الرئيسية
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 350, 0, 450)
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -225)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.Size = UDim2.new(0, 350, 0, 480)
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -240)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderColor3 = Color3.fromRGB(150, 0, 255)
 MainFrame.BorderSizePixel = 2
-MainFrame.Visible = false -- مخفية في البداية
-MainFrame.Active = true
-MainFrame.Draggable = true
+MainFrame.Visible = false
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
+-- شريط العنوان
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundTransparency = 1
-Title.Text = "Shadow Hub | Safe Mode"
+Title.Text = "Shadow Hub V4 | Elite Anti-Ban"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 18
+Title.TextSize = 16
 Title.Parent = MainFrame
 
--- فتح وإغلاق القائمة بالضغط على 👽
-AlienBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
-end)
+-- زر الإغلاق X
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Parent = MainFrame
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 5)
 
 local Scroll = Instance.new("ScrollingFrame")
 Scroll.Size = UDim2.new(1, -20, 1, -50)
-Scroll.Position = UDim2.new(0, 10, 0, 40)
+Scroll.Position = UDim2.new(0, 10, 0, 45)
 Scroll.BackgroundTransparency = 1
 Scroll.ScrollBarThickness = 4
-Scroll.CanvasSize = UDim2.new(0, 0, 0, 600)
+Scroll.CanvasSize = UDim2.new(0, 0, 0, 700)
 Scroll.Parent = MainFrame
 
 local Layout = Instance.new("UIListLayout")
 Layout.Parent = Scroll
-Layout.Padding = UDim.new(0, 10)
+Layout.Padding = UDim.new(0, 12)
 
 -- ==========================================
--- 3. دوال إنشاء الأزرار (UI Functions)
+-- 2. أنظمة السحب والتفاعل (Dragging Logic)
 -- ==========================================
-local function CreateButton(text, color, callback)
+local function MakeDraggable(gui)
+    local dragging, dragInput, dragStart, startPos
+    gui.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = gui.Position
+        end
+    end)
+    gui.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    gui.Changed:Connect(function(prop)
+        if prop == "AbsolutePosition" then dragInput = UserInputService:GetLastInputType() end
+    end)
+end
+
+MakeDraggable(AlienBtn)
+MakeDraggable(MainFrame)
+
+AlienBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
+CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
+
+-- ==========================================
+-- 3. دوال الأزرار المتقدمة (ON / OFF Toggles)
+-- ==========================================
+local function CreateToggle(text, callback)
+    local state = false
     local Btn = Instance.new("TextButton", Scroll)
-    Btn.Size = UDim2.new(1, 0, 0, 40)
-    Btn.BackgroundColor3 = color
-    Btn.Text = text
+    Btn.Size = UDim2.new(1, 0, 0, 45)
+    Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    Btn.Text = "[OFF] " .. text
     Btn.TextColor3 = Color3.new(1,1,1)
     Btn.Font = Enum.Font.GothamBold
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
-    Btn.MouseButton1Click:Connect(callback)
+    
+    Btn.MouseButton1Click:Connect(function()
+        state = not state
+        if state then
+            Btn.BackgroundColor3 = Color3.fromRGB(0, 150, 50)
+            Btn.Text = "[ON] " .. text
+        else
+            Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+            Btn.Text = "[OFF] " .. text
+        end
+        callback(state)
+    end)
     return Btn
 end
 
 local function CreateSlider(name, maxVal, callback)
     local Frame = Instance.new("Frame", Scroll)
     Frame.Size = UDim2.new(1, 0, 0, 50)
-    Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 6)
     
     local Label = Instance.new("TextLabel", Frame)
@@ -125,7 +151,7 @@ local function CreateSlider(name, maxVal, callback)
     local SliderBg = Instance.new("TextButton", Frame)
     SliderBg.Size = UDim2.new(0.9, 0, 0, 10)
     SliderBg.Position = UDim2.new(0.05, 0, 0, 30)
-    SliderBg.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    SliderBg.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
     SliderBg.Text = ""
     Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(1, 0)
     
@@ -157,14 +183,15 @@ local function CreateSlider(name, maxVal, callback)
 end
 
 -- ==========================================
--- 4. المتغيرات والأنظمة المتقدمة (Logic)
+-- 4. الأنظمة الأساسية (Features Logic)
 -- ==========================================
 _G.CharSpeed = 16
 _G.CharJump = 50
-_G.SafeAutoRun = false
+_G.AutoKeys = false
 _G.AutoOrbs = false
+_G.SafeAutoRun = false
 
--- تطبيق السرعة بشكل آمن لمنع الاختراق
+-- تطبيق السرعة بشكل متكرر
 RunService.Stepped:Connect(function()
     pcall(function()
         local char = LocalPlayer.Character
@@ -175,61 +202,24 @@ RunService.Stepped:Connect(function()
     end)
 end)
 
--- أشرطة التحكم بالسرعة والقفز (الحد 480)
-CreateSlider("🏃 Speed Limit", 480, function(val) _G.CharSpeed = val end)
+CreateSlider("🏃 Speed Limit (آمن)", 480, function(val) _G.CharSpeed = val end)
 CreateSlider("⬆️ Jump Limit", 480, function(val) _G.CharJump = val end)
 
--- ميزة 1: صائد المفاتيح الذهبية (طيران ذكي وتخطي آمن)
-CreateButton("🔑 جمع كل المفاتيح الذهبية (طيران)", Color3.fromRGB(200, 150, 0), function()
+-- نظام سحب المفاتيح الذهبية عن بعد (مضاد للحظر)
+CreateToggle("🔑 صيد المفاتيح الذهبية (عن بعد)", function(state)
+    _G.AutoKeys = state
     task.spawn(function()
-        pcall(function()
-            local Root = LocalPlayer.Character.HumanoidRootPart
-            local originalCFrame = Root.CFrame
-            
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if obj:IsA("Part") or obj:IsA("MeshPart") then
-                    local name = obj.Name:lower()
-                    -- يبحث عن أي شيء اسمه مفتاح ذهبي أو مميز
-                    if (name:match("golden") or name:match("key") or name:match("special")) and obj.Transparency < 1 then
-                        
-                        -- تفعيل اختراق الجدران فقط أثناء الطيران
-                        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                            if part:IsA("BasePart") then part.CanCollide = false end
-                        end
-                        
-                        -- الطيران نحو المفتاح
-                        local dist = (Root.Position - obj.Position).Magnitude
-                        local info = TweenInfo.new(dist / 250, Enum.EasingStyle.Linear)
-                        local tween = TweenService:Create(Root, info, {CFrame = obj.CFrame})
-                        tween:Play()
-                        tween.Completed:Wait()
-                        task.wait(0.2) -- ينتظر لحظة للتأكد من جمع المفتاح
-                    end
-                end
-            end
-            
-            -- إعادة تفعيل الاصطدام بالجدران والعودة للأرض بأمان
-            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") then part.CanCollide = true end
-            end
-        end)
-    end)
-end)
-
--- ميزة 2: جمع الكرات الصفراء عن بعد (بدون حركة)
-local OrbBtn = CreateButton("🟡 تفعيل مغناطيس الكرات (Orbs)", Color3.fromRGB(0, 100, 200), function()
-    _G.AutoOrbs = not _G.AutoOrbs
-    task.spawn(function()
-        while _G.AutoOrbs do
-            task.wait(0.1)
+        while _G.AutoKeys do
+            task.wait(0.5)
             pcall(function()
                 local Root = LocalPlayer.Character.HumanoidRootPart
                 for _, obj in pairs(workspace:GetDescendants()) do
-                    -- يبحث عن الكرات أو الأجسام المضيئة التي تسقط
-                    if (obj:IsA("Part") or obj:IsA("MeshPart")) and obj:FindFirstChildWhichIsA("TouchTransmitter") then
-                        if obj.Name:lower():match("orb") or obj.Shape == Enum.PartType.Ball or obj.Material == Enum.Material.Neon then
-                            -- استدعاء اللمس عن بعد دون التحرك
+                    if obj:IsA("BasePart") and obj:FindFirstChildWhichIsA("TouchTransmitter") then
+                        local name = obj.Name:lower()
+                        -- استهداف المفاتيح دون الحاجة للطيران إليها
+                        if name:match("key") or name:match("golden") or name:match("special") or name:match("secret") then
                             firetouchinterest(Root, obj, 0)
+                            task.wait(0.05)
                             firetouchinterest(Root, obj, 1)
                         end
                     end
@@ -239,26 +229,21 @@ local OrbBtn = CreateButton("🟡 تفعيل مغناطيس الكرات (Orbs)"
     end)
 end)
 
--- ميزة 3: الجري التلقائي الآمن (يمشي على الأرض ويتفادى العوائق)
-local WalkBtn = CreateButton("🚶‍♂️ المشي الآمن نحو الفوز (بدون بان)", Color3.fromRGB(0, 150, 0), function()
-    _G.SafeAutoRun = not _G.SafeAutoRun
+-- نظام سحب الكرات الصفراء
+CreateToggle("🟡 مغناطيس الكرات المتساقطة", function(state)
+    _G.AutoOrbs = state
     task.spawn(function()
-        while _G.SafeAutoRun do
-            task.wait(0.1)
+        while _G.AutoOrbs do
+            task.wait(0.2)
             pcall(function()
-                local char = LocalPlayer.Character
-                local hum = char.Humanoid
-                local root = char.HumanoidRootPart
-                
-                -- البحث عن منصات النهاية أو السرعة القريبة
+                local Root = LocalPlayer.Character.HumanoidRootPart
                 for _, obj in pairs(workspace:GetDescendants()) do
-                    if obj:IsA("Part") and (obj.Name:lower():match("win") or obj.Name:lower():match("end")) then
-                        -- جعل الشخصية تجري فعلياً نحو الهدف
-                        hum:MoveTo(obj.Position)
-                        
-                        -- إذا توقفت الشخصية (بسبب عائق) تقفز تلقائياً
-                        if hum.MoveDirection.Magnitude == 0 then
-                            hum.Jump = true
+                    if obj:IsA("BasePart") and obj:FindFirstChildWhichIsA("TouchTransmitter") then
+                        local name = obj.Name:lower()
+                        if name:match("orb") or obj.Material == Enum.Material.Neon then
+                            firetouchinterest(Root, obj, 0)
+                            task.wait(0.01)
+                            firetouchinterest(Root, obj, 1)
                         end
                     end
                 end
@@ -267,4 +252,27 @@ local WalkBtn = CreateButton("🚶‍♂️ المشي الآمن نحو الف�
     end)
 end)
 
-print("Shadow Elite V3 Loaded!")
+-- نظام الجري التلقائي للتقدم في العوالم
+CreateToggle("🚶‍♂️ المشي التلقائي الآمن (اختراق العوالم)", function(state)
+    _G.SafeAutoRun = state
+    task.spawn(function()
+        while _G.SafeAutoRun do
+            task.wait()
+            pcall(function()
+                local char = LocalPlayer.Character
+                local hum = char.Humanoid
+                local root = char.HumanoidRootPart
+                
+                -- إجبار الشخصية على الجري للأمام باستمرار لاختراق المراحل
+                hum:Move(Vector3.new(0, 0, -1), true)
+                
+                -- القفز التلقائي في حال الاصطدام بعائق
+                if hum.MoveDirection.Magnitude < 0.1 then
+                    hum.Jump = true
+                end
+            end)
+        end
+    end)
+end)
+
+print("Shadow Elite V4 Initialized - By Zero 👾")
