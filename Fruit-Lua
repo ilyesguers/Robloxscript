@@ -1,41 +1,64 @@
--- Fruit-Lua | Professional Auto-Scanner & Server Hopper
+-- Fruit-Lua | Ultimate Empty-Server Hopper & Scanner
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
-local Player = game.Players.LocalPlayer
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
 
 -- الرابط الخاص بسيرفرك على Railway
 local API_URL = "https://blox-fruits-production.up.railway.app/report_fruit"
 
--- دالة القفز الذكي (فلترة السيرفرات)
-local function hopToNextServer()
-    print("جاري البحث عن سيرفر جديد...")
-    local success, result = pcall(function()
-        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?limit=100"
+-- دالة القفز إلى سيرفرات فارغة
+local function hopToEmptyServer()
+    print("جاري البحث عن سيرفر شبه فارغ...")
+    local success, err = pcall(function()
+        -- استخدام sortOrder=Asc يجلب السيرفرات الفارغة أو الأقل عدداً أولاً
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
         local response = HttpService:JSONDecode(game:HttpGet(url))
         
-        local validServers = {}
-        for _, server in pairs(response.data) do
-            -- فلترة: فقط السيرفرات غير الممتلئة (أقل من 20 لاعب)
-            if server.playing < 20 and server.id ~= game.JobId then
-                table.insert(validServers, server)
+        local emptyServers = {}
+        if response and response.data then
+            for _, server in pairs(response.data) do
+                -- فلترة: نبحث عن سيرفرات بها أقل من 5 لاعبين لضمان الهدوء
+                if type(server) == "table" and server.playing and server.maxPlayers then
+                    if server.playing < 5 and server.id ~= game.JobId then
+                        table.insert(emptyServers, server)
+                    end
+                end
             end
         end
         
-        if #validServers > 0 then
-            local targetServer = validServers[math.random(1, #validServers)]
-            print("الانتقال إلى السيرفر: " .. targetServer.id)
+        if #emptyServers > 0 then
+            -- نختار سيرفر عشوائي من السيرفرات الفارغة لتجنب التكدس
+            local targetServer = emptyServers[math.random(1, #emptyServers)]
+            print("تم إيجاد سيرفر فارغ! عدد اللاعبين: " .. tostring(targetServer.playing) .. " - جاري الانتقال...")
             TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer.id, Player)
+        else
+            print("لا توجد سيرفرات فارغة حالياً، سيتم المحاولة مرة أخرى...")
+            task.wait(5)
+            -- إذا لم يجد سيرفرات فارغة، يبحث بشكل عام مع التأكد من وجود مكان
+            local backupUrl = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100"
+            local backupResponse = HttpService:JSONDecode(game:HttpGet(backupUrl))
+            if backupResponse and backupResponse.data then
+                for _, s in pairs(backupResponse.data) do
+                    if s.playing < s.maxPlayers - 2 and s.id ~= game.JobId then
+                        print("الانتقال لسيرفر بديل...")
+                        TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, Player)
+                        break
+                    end
+                end
+            end
         end
     end)
     
     if not success then
-        task.wait(10)
-        hopToNextServer()
+        print("خطأ في الاتصال بالسيرفرات، جاري إعادة المحاولة...")
+        task.wait(5)
+        hopToEmptyServer()
     end
 end
 
--- دالة المسح
+-- دالة مسح الفواكه
 local function scanAndReport()
     local fruitsFolder = Workspace:FindFirstChild("Fruits")
     if not fruitsFolder then return false end
@@ -58,14 +81,20 @@ local function scanAndReport()
     return found
 end
 
--- الحلقة الرئيسية (AFK Logic)
+-- الحلقة الرئيسية
 task.spawn(function()
+    -- انتظار قصير عند بداية دخول السيرفر لضمان تحميل الخريطة
+    task.wait(3) 
+    
     while true do
         if not scanAndReport() then
-            print("لا توجد فواكه.. القفز لسيرفر آخر.")
-            -- تأخير عشوائي لحماية الحساب من الكشف
-            task.wait(math.random(30, 60)) 
-            hopToNextServer()
+            print("لا توجد فواكه.. جاري القفز لسيرفر فارغ آخر.")
+            task.wait(math.random(10, 20)) -- تأخير ذكي لتجنب الحظر
+            hopToEmptyServer()
+        else
+            -- إذا وجد فاكهة، يتوقف عن القفز وينتظرك
+            print("تم العثور على فاكهة! السكربت في وضع الانتظار...")
+            break 
         end
         task.wait(5)
     end
