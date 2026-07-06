@@ -1,40 +1,61 @@
+-- Fruit-Lua Professional Automator
 local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
--- الرابط الخاص بك
 local API_URL = "https://blox-fruits-production.up.railway.app/report_fruit"
+local Player = game.Players.LocalPlayer
 
-local function scanAndReport()
-    -- افتراضياً، الفواكه تكون داخل مجلد يسمى "Fruits" أو "Items" (تأكد من اسم المجلد في لعبتك)
-    local fruitsFolder = Workspace:FindFirstChild("Fruits") 
-    
-    if fruitsFolder then
-        for _, fruit in pairs(fruitsFolder:GetChildren()) do
-            -- التأكد من النوع (مثلاً إذا كانت الفاكهة لها Attribute يحدد ندرتها)
-            if fruit:GetAttribute("Rarity") == "Mythical" then
-                local data = {
-                    name = fruit.Name,
-                    position = {x = fruit.Position.X, y = fruit.Position.Y, z = fruit.Position.Z},
-                    server_id = game.JobId -- معرف السيرفر الحالي
-                }
-                
-                -- إرسال البيانات للسيرفر
-                local success, response = pcall(function()
-                    return HttpService:PostAsync(API_URL, HttpService:JSONEncode(data), Enum.HttpContentType.ApplicationJson)
-                end)
-                
-                if success then
-                    print("تم إرسال موقع الفاكهة للسيرفر بنجاح!")
-                end
-            end
-        end
-    end
+-- إعدادات الأتمتة
+local targetRarity = "Mythical" 
+
+local function hopToNextServer()
+    local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?limit=100"))
+    local nextServer = servers.data[math.random(1, #servers.data)].id
+    TeleportService:TeleportToPlaceInstance(game.PlaceId, nextServer, Player)
 end
 
--- تشغيل الماسح كل 5 ثوانٍ
+local function autoStoreFruit(fruit)
+    -- هنا يجب استبدال "RemoteEventName" بالاسم الفعلي للحدث في لعبتك
+    -- مثال: ReplicatedStorage.Events.StoreFruit:FireServer(fruit)
+    print("جاري تخزين الفاكهة: " .. fruit.Name)
+end
+
+local function scan()
+    local folder = Workspace:FindFirstChild("Fruits")
+    if not folder then return end
+    
+    for _, fruit in pairs(folder:GetChildren()) do
+        if fruit:GetAttribute("Rarity") == targetRarity then
+            print("تم العثور على هدف: " .. fruit.Name)
+            -- إرسال البيانات لسيرفرك
+            pcall(function()
+                HttpService:PostAsync(API_URL, HttpService:JSONEncode({
+                    name = fruit.Name,
+                    pos = {x=fruit.Position.X, y=fruit.Position.Y, z=fruit.Position.Z},
+                    server = game.JobId
+                }))
+            end)
+            
+            -- الأتمتة: التوجه للفاكهة
+            Player.Character:MoveTo(fruit.Position)
+            task.wait(1)
+            autoStoreFruit(fruit)
+            return true
+        end
+    end
+    return false
+end
+
+-- حلقة التشغيل الرئيسية
 task.spawn(function()
     while true do
-        scanAndReport()
+        if not scan() then
+            print("لا يوجد فواكه.. القفز لسيرفر جديد")
+            task.wait(math.random(10, 20)) -- تأخير عشوائي لحماية الحساب
+            hopToNextServer()
+        end
         task.wait(5)
     end
 end)
