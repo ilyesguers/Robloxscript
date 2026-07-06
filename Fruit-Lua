@@ -1,59 +1,70 @@
--- Fruit-Lua Professional Automator
+-- Fruit-Lua | Professional Auto-Scanner & Server Hopper
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
-local API_URL = "https://blox-fruits-production.up.railway.app/report_fruit"
 local Player = game.Players.LocalPlayer
 
--- إعدادات الأتمتة
-local targetRarity = "Mythical" 
+-- الرابط الخاص بسيرفرك على Railway
+local API_URL = "https://blox-fruits-production.up.railway.app/report_fruit"
 
+-- دالة القفز الذكي (فلترة السيرفرات)
 local function hopToNextServer()
-    local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?limit=100"))
-    local nextServer = servers.data[math.random(1, #servers.data)].id
-    TeleportService:TeleportToPlaceInstance(game.PlaceId, nextServer, Player)
-end
-
-local function autoStoreFruit(fruit)
-    -- هنا يجب استبدال "RemoteEventName" بالاسم الفعلي للحدث في لعبتك
-    -- مثال: ReplicatedStorage.Events.StoreFruit:FireServer(fruit)
-    print("جاري تخزين الفاكهة: " .. fruit.Name)
-end
-
-local function scan()
-    local folder = Workspace:FindFirstChild("Fruits")
-    if not folder then return end
+    print("جاري البحث عن سيرفر جديد...")
+    local success, result = pcall(function()
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?limit=100"
+        local response = HttpService:JSONDecode(game:HttpGet(url))
+        
+        local validServers = {}
+        for _, server in pairs(response.data) do
+            -- فلترة: فقط السيرفرات غير الممتلئة (أقل من 20 لاعب)
+            if server.playing < 20 and server.id ~= game.JobId then
+                table.insert(validServers, server)
+            end
+        end
+        
+        if #validServers > 0 then
+            local targetServer = validServers[math.random(1, #validServers)]
+            print("الانتقال إلى السيرفر: " .. targetServer.id)
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer.id, Player)
+        end
+    end)
     
-    for _, fruit in pairs(folder:GetChildren()) do
-        if fruit:GetAttribute("Rarity") == targetRarity then
-            print("تم العثور على هدف: " .. fruit.Name)
-            -- إرسال البيانات لسيرفرك
+    if not success then
+        task.wait(10)
+        hopToNextServer()
+    end
+end
+
+-- دالة المسح
+local function scanAndReport()
+    local fruitsFolder = Workspace:FindFirstChild("Fruits")
+    if not fruitsFolder then return false end
+    
+    local found = false
+    for _, fruit in pairs(fruitsFolder:GetChildren()) do
+        if fruit:GetAttribute("Rarity") == "Mythical" then
+            found = true
+            local data = {
+                name = fruit.Name,
+                position = {x = fruit.Position.X, y = fruit.Position.Y, z = fruit.Position.Z},
+                server_id = game.JobId
+            }
             pcall(function()
-                HttpService:PostAsync(API_URL, HttpService:JSONEncode({
-                    name = fruit.Name,
-                    pos = {x=fruit.Position.X, y=fruit.Position.Y, z=fruit.Position.Z},
-                    server = game.JobId
-                }))
+                HttpService:PostAsync(API_URL, HttpService:JSONEncode(data), Enum.HttpContentType.ApplicationJson)
             end)
-            
-            -- الأتمتة: التوجه للفاكهة
-            Player.Character:MoveTo(fruit.Position)
-            task.wait(1)
-            autoStoreFruit(fruit)
-            return true
+            print("تم رصد فاكهة أسطورية في الموقع: " .. tostring(fruit.Position))
         end
     end
-    return false
+    return found
 end
 
--- حلقة التشغيل الرئيسية
+-- الحلقة الرئيسية (AFK Logic)
 task.spawn(function()
     while true do
-        if not scan() then
-            print("لا يوجد فواكه.. القفز لسيرفر جديد")
-            task.wait(math.random(10, 20)) -- تأخير عشوائي لحماية الحساب
+        if not scanAndReport() then
+            print("لا توجد فواكه.. القفز لسيرفر آخر.")
+            -- تأخير عشوائي لحماية الحساب من الكشف
+            task.wait(math.random(30, 60)) 
             hopToNextServer()
         end
         task.wait(5)
