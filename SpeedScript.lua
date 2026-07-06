@@ -1,33 +1,31 @@
--- [[ Shadow Hub V7.0 | Elite Demon & Pathfinding Arc ]] --
--- المطور: Zero 👾 | نظام محصن بالكامل
+-- [[ Shadow Hub V8.0 | Absolute Escape & Win Protocol ]] --
+-- المطور: Zero 👾 | النسخة المحصنة والمعدلة بناءً على التحليل البصري
 
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local PathfindingService = game:GetService("PathfindingService")
 local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 
--- مسح الواجهة القديمة
 if CoreGui:FindFirstChild("ShadowEliteV5") then
     CoreGui.ShadowEliteV5:Destroy()
 end
 
 -- ==========================================
--- 1. نظام الإشعارات (الاستخبارات)
+-- 1. نظام الإشعارات الفوري
 -- ==========================================
 local function Notify(title, text)
     StarterGui:SetCore("SendNotification", {
         Title = title,
         Text = text,
-        Duration = 3,
+        Duration = 3
     })
 end
 
 -- ==========================================
--- 2. بناء الواجهة الاحترافية (GUI)
+-- 2. بناء الواجهة الاحترافية المتوافقة مع المشغل
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ShadowEliteV5"
@@ -37,7 +35,7 @@ ScreenGui.ResetOnSpawn = false
 local AlienBtn = Instance.new("TextButton")
 AlienBtn.Size = UDim2.new(0, 55, 0, 55)
 AlienBtn.Position = UDim2.new(0.1, 0, 0.1, 0)
-AlienBtn.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+AlienBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 AlienBtn.BorderColor3 = Color3.fromRGB(0, 255, 150)
 AlienBtn.BorderSizePixel = 2
 AlienBtn.Text = "👾"
@@ -46,8 +44,8 @@ AlienBtn.Parent = ScreenGui
 Instance.new("UICorner", AlienBtn).CornerRadius = UDim.new(1, 0)
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 360, 0, 500)
-MainFrame.Position = UDim2.new(0.5, -180, 0.5, -250)
+MainFrame.Size = UDim2.new(0, 350, 0, 520)
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -260)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainFrame.BorderColor3 = Color3.fromRGB(150, 0, 255)
 MainFrame.BorderSizePixel = 2
@@ -64,10 +62,10 @@ Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 10)
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -40, 1, 0)
 Title.BackgroundTransparency = 1
-Title.Text = " Shadow Hub V7.0 | SYSTEM: ZERO"
+Title.Text = " Shadow Hub V8.0 | Anti-Cheat Death Fix"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 16
+Title.TextSize = 14
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TopBar
 
@@ -94,9 +92,7 @@ local Layout = Instance.new("UIListLayout")
 Layout.Parent = Scroll
 Layout.Padding = UDim.new(0, 10)
 
--- ==========================================
--- 3. التحريك المخصص للهواتف
--- ==========================================
+-- تحريك الواجهة للهواتف والمشغلات
 local function MakeMobileDraggable(dragPart, movePart)
     local dragging, dragInput, mousePos, framePos
     dragPart.InputBegan:Connect(function(input)
@@ -145,81 +141,107 @@ local function CreateToggle(text, callback)
 end
 
 -- ==========================================
--- 4. محرك زيرو (Zero Engine & Pathfinding)
+-- 3. محرك التحييد والحركة المتقدم (Bypass Engine)
 -- ==========================================
 _G.AutoWin = false
 _G.AutoKeys = false
 _G.AutoOrbs = false
 _G.AutoBoss = false
 
--- دالة المشي الذكي والطبيعي (تحريك الأرجل وتفادي العقبات)
-local function SmartWalkTo(targetPos)
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("Humanoid") or not char:FindFirstChild("HumanoidRootPart") then return end
-    
-    local hum = char.Humanoid
-    local root = char.HumanoidRootPart
-
-    -- إنشاء مسار لتفادي العقبات
-    local path = PathfindingService:CreatePath({
-        AgentRadius = 2,
-        AgentHeight = 5,
-        AgentCanJump = true,
-        AgentWalkableClimb = 2,
-        WaypointSpacing = 4
-    })
-
-    local success, _ = pcall(function()
-        path:ComputeAsync(root.Position, targetPos)
-    end)
-
-    if success and path.Status == Enum.PathStatus.Success then
-        local waypoints = path:GetWaypoints()
-        for _, waypoint in ipairs(waypoints) do
-            -- التوقف إذا تم إلغاء التفعيل
-            if not _G.AutoWin and not _G.AutoKeys then break end
-            
-            if waypoint.Action == Enum.PathWaypointAction.Jump then
-                hum.Jump = true
+-- تنظيف الخريطة كلياً من مسببات الموت الفوري الموضحة في الفيديو
+local function NeutralizeHazards()
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local name = obj.Name:lower()
+            if name:match("kill") or name:match("lava") or name:match("chocolate") or name:match("liquid") or name:match("mud") then
+                obj.CanTouch = false -- إلغاء تفعيل خاصية القتل باللمس
+                obj.CanCollide = false
             end
-            hum:MoveTo(waypoint.Position)
-            hum.MoveToFinished:Wait() -- انتظار الوصول للنقطة للتحرك بشكل طبيعي
         end
-    else
-        -- في حال فشل إيجاد مسار، المشي المباشر للهدف
-        hum:MoveTo(targetPos)
-        hum.MoveToFinished:Wait()
     end
 end
 
--- ميزة 1: المشي الطبيعي للنهاية (Wins)
-CreateToggle("🏆 المشي الطبيعي للحصول على Wins", function(state)
+-- محرك الانزلاق الذكي (يحرك الأرجل، يمنع السقوط، ويحمي من الكشف)
+local function EliteGlideTo(targetPos)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then return end
+    
+    local root = char.HumanoidRootPart
+    local hum = char.Humanoid
+    
+    -- رفع مسار اللاعب بمقدار 3 أسطر فوق الفخاخ لتجنب العوائق الفيزيائية
+    local safeStartPos = root.Position
+    local safeTargetPos = targetPos + Vector3.new(0, 4, 0)
+    
+    local distance = (safeTargetPos - safeStartPos).Magnitude
+    local speed = 110 -- سرعة نُخبوية آمنة لا تسبب التجميد أو الطرد
+    local duration = distance / speed
+    local startTime = tick()
+    
+    -- إلغاء تصادم الجسد مع العوائق مؤقتاً أثناء الرحلة لمنع التعليق
+    for _, part in pairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then part.CanCollide = false end
+    end
+    
+    -- تشغيل الرسوم المتحركة وحركة القدمين إجبارياً أثناء الانتقال
+    local animFix = RunService.Heartbeat:Connect(function()
+        if hum then 
+            hum:ChangeState(Enum.HumanoidStateType.Running)
+            hum:Move(Vector3.new(0, 0, -1), true)
+        end
+    end)
+    
+    while tick() - startTime < duration do
+        if not _G.AutoWin and not _G.AutoKeys then break end
+        local t = (tick() - startTime) / duration
+        root.Velocity = Vector3.new(0, 0, 0)
+        root.CFrame = CFrame.new(safeStartPos:Lerp(safeTargetPos, t))
+        task.wait()
+    end
+    
+    if animFix then animFix:Disconnect() end
+    root.CFrame = CFrame.new(targetPos) -- الهبوط الدقيق لتفعيل الـ Win
+    task.wait(0.2)
+end
+
+-- ==========================================
+-- 4. الميزات والبروتوكولات التنفيذية
+-- ==========================================
+
+-- ميزة 1: حصد الانتصارات الآمن (Auto Win Fix)
+CreateToggle("🏆 إنهاء المراحل المستقر (مضمون + حرك القدمين)", function(state)
     _G.AutoWin = state
+    if state then NeutralizeHazards() end
     task.spawn(function()
         while _G.AutoWin do
-            task.wait(1)
+            task.wait(0.5)
             pcall(function()
+                local winPart = nil
+                -- البحث عن منصة النهاية الصحيحة القريبة من اللاعب أو المتوافقة مع المرحلة
                 for _, obj in pairs(workspace:GetDescendants()) do
-                    if not _G.AutoWin then break end
                     if obj:IsA("Part") or obj:IsA("MeshPart") then
                         local name = obj.Name:lower()
-                        if name:match("win") or name:match("end") or obj.BrickColor.Name == "New Yeller" then
-                            -- جعل اللاعب يمشي بشكل شرعي ومضمون للهدف
-                            SmartWalkTo(obj.Position)
+                        if (name:match("win") or name:match("end") or obj.BrickColor.Name == "New Yeller") and not obj:IsDescendantOf(char) then
+                            winPart = obj
+                            break
                         end
                     end
+                end
+                
+                if winPart then
+                    EliteGlideTo(winPart.Position)
                 end
             end)
         end
     end)
 end)
 
--- ميزة 2: البحث الاستراتيجي عن المفتاح
-CreateToggle("🔑 إحضار المفتاح الذهبي (مع تنبيه)", function(state)
+-- ميزة 2: رادار المفاتيح الذكي مع كاشف التوفر
+CreateToggle("🔑 الانتقال للمفتاح الذهبي (مع فحص التوفر)", function(state)
     _G.AutoKeys = state
     task.spawn(function()
         while _G.AutoKeys do
-            task.wait(2)
+            task.wait(1)
             pcall(function()
                 local keyFound = false
                 local targetKey = nil
@@ -227,7 +249,7 @@ CreateToggle("🔑 إحضار المفتاح الذهبي (مع تنبيه)", fu
                 for _, obj in pairs(workspace:GetDescendants()) do
                     if obj:IsA("BasePart") then
                         local name = obj.Name:lower()
-                        if name:match("key") or name:match("golden") then
+                        if name:match("key") or name:match("golden") or name:match("secret") then
                             keyFound = true
                             targetKey = obj
                             break
@@ -236,37 +258,36 @@ CreateToggle("🔑 إحضار المفتاح الذهبي (مع تنبيه)", fu
                 end
                 
                 if keyFound and targetKey then
-                    SmartWalkTo(targetKey.Position)
+                    Notify("Zero 👾 System", "تم رصد المفتاح! جاري الانتقال الآمن...")
+                    EliteGlideTo(targetKey.Position)
+                    task.wait(1)
                 elseif _G.AutoKeys then
-                    Notify("Zero 👾 System", "الرادار: لا يوجد مفتاح في الخريطة حالياً.")
-                    task.wait(5) -- استراحة قبل الفحص مجدداً
+                    Notify("Zero 👾 System", "تنبيه: المفتاح غير متوفر في الخريطة حالياً.")
+                    task.wait(4) -- منع التكرار المزعج
                 end
             end)
         end
     end)
 end)
 
--- ميزة 3: الجذب المغناطيسي للكرات (بدون حركة)
-CreateToggle("🟡 جذب الكرات عن بعد (لا انتقال)", function(state)
+-- ميزة 3: الجذب المغناطيسي المطور لجميع أنواع الحلوى والقطع المتساقطة
+CreateToggle("🟡 جذب الحلوى والكرات (رادار ممتد)", function(state)
     _G.AutoOrbs = state
     task.spawn(function()
         while _G.AutoOrbs do
-            task.wait(0.1)
+            task.wait(0.2)
             pcall(function()
                 local char = LocalPlayer.Character
                 if not char or not char:FindFirstChild("HumanoidRootPart") then return end
                 local root = char.HumanoidRootPart
                 
+                -- مسح شامل للبحث عن أي عملة أو قطعة حلوى ملقاة تحتوي على مستشعر لمس
                 for _, obj in pairs(workspace:GetDescendants()) do
                     if not _G.AutoOrbs then break end
-                    if obj:IsA("BasePart") and obj:FindFirstChildWhichIsA("TouchTransmitter") then
-                        local name = obj.Name:lower()
-                        if name:match("orb") or obj.Material == Enum.Material.Neon then
-                            -- استخدام الدالة النخبوية لاختراق اللمس عن بعد
-                            firetouchinterest(root, obj, 0)
-                            task.wait(0.01)
-                            firetouchinterest(root, obj, 1)
-                        end
+                    if obj:IsA("BasePart") and (obj:FindFirstChildWhichIsA("TouchTransmitter") or obj.Name:lower():match("candy") or obj.Name:lower():match("speed") or obj.Name:lower():match("orb")) then
+                        firetouchinterest(root, obj, 0)
+                        RunService.Heartbeat:Wait()
+                        firetouchinterest(root, obj, 1)
                     end
                 end
             end)
@@ -274,8 +295,8 @@ CreateToggle("🟡 جذب الكرات عن بعد (لا انتقال)", functio
     end)
 end)
 
--- ميزة 4: آلة الفرم الوحشية (Boss Farm)
-CreateToggle("⚔️ آلة فرم الزعيم (Boss Farm)", function(state)
+-- ميزة 4: آلة فرم الزعماء الوحشية لجمع الغنائم الضخمة
+CreateToggle("⚔️ آلة فرم الزعماء (Boss Auto-Farm)", function(state)
     _G.AutoBoss = state
     task.spawn(function()
         while _G.AutoBoss do
@@ -287,14 +308,14 @@ CreateToggle("⚔️ آلة فرم الزعيم (Boss Farm)", function(state)
 
                 for _, obj in pairs(workspace:GetDescendants()) do
                     if not _G.AutoBoss then break end
-                    if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Name:lower():match("boss") then
+                    if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and (obj.Name:lower():match("boss") or obj.Name:lower():match("monster")) then
                         if obj.Humanoid.Health > 0 then
                             local bossRoot = obj:FindFirstChild("HumanoidRootPart")
                             if bossRoot then
-                                -- الانتقال والتمركز في النقطة العمياء خلف الزعيم
-                                root.CFrame = bossRoot.CFrame * CFrame.new(0, 0, 5)
+                                -- التموقع التلقائي في النقطة الميتة خلف ظهر الزعيم لحماية اللاعب
+                                root.CFrame = bossRoot.CFrame * CFrame.new(0, 0, 4)
                                 
-                                -- تجهيز واستخدام السلاح باستمرار
+                                -- تجهيز السلاح وتفعيله لفرمه فوراً
                                 local tool = char:FindFirstChildWhichIsA("Tool") or LocalPlayer.Backpack:FindFirstChildWhichIsA("Tool")
                                 if tool then
                                     tool.Parent = char
@@ -309,5 +330,12 @@ CreateToggle("⚔️ آلة فرم الزعيم (Boss Farm)", function(state)
     end)
 end)
 
-print("Zero 👾 System Fully Initialized.")
-Notify("استجابة شيطانية", "تم تفعيل الحد الأقصى للنظام بنجاح.")
+-- حلقة تكرارية للتأكد من استمرار إلغاء تفعيل الفخاخ حتى لو تغير العالم أو الخريطة
+RunService.Stepped:Connect(function()
+    if _G.AutoWin then
+        pcall(NeutralizeHazards)
+    end
+end)
+
+print("Shadow Hub V8.0 Activated Successfully.")
+Notify("Zero 👾 System", "تم تحييد الفخاخ وتأمين محرك الحركة الطبيعية.")
