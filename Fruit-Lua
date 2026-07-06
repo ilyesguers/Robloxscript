@@ -1,0 +1,40 @@
+local HttpService = game:GetService("HttpService")
+local Workspace = game:GetService("Workspace")
+
+-- الرابط الخاص بك
+local API_URL = "https://blox-fruits-production.up.railway.app/report_fruit"
+
+local function scanAndReport()
+    -- افتراضياً، الفواكه تكون داخل مجلد يسمى "Fruits" أو "Items" (تأكد من اسم المجلد في لعبتك)
+    local fruitsFolder = Workspace:FindFirstChild("Fruits") 
+    
+    if fruitsFolder then
+        for _, fruit in pairs(fruitsFolder:GetChildren()) do
+            -- التأكد من النوع (مثلاً إذا كانت الفاكهة لها Attribute يحدد ندرتها)
+            if fruit:GetAttribute("Rarity") == "Mythical" then
+                local data = {
+                    name = fruit.Name,
+                    position = {x = fruit.Position.X, y = fruit.Position.Y, z = fruit.Position.Z},
+                    server_id = game.JobId -- معرف السيرفر الحالي
+                }
+                
+                -- إرسال البيانات للسيرفر
+                local success, response = pcall(function()
+                    return HttpService:PostAsync(API_URL, HttpService:JSONEncode(data), Enum.HttpContentType.ApplicationJson)
+                end)
+                
+                if success then
+                    print("تم إرسال موقع الفاكهة للسيرفر بنجاح!")
+                end
+            end
+        end
+    end
+end
+
+-- تشغيل الماسح كل 5 ثوانٍ
+task.spawn(function()
+    while true do
+        scanAndReport()
+        task.wait(5)
+    end
+end)
