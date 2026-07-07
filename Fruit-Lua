@@ -1,32 +1,30 @@
 -- ==========================================
--- Fruit-Lua V6 | Native Team Injection
+-- Fruit-Lua V7 | Auto-Pilot & Smart Hopper
 -- ==========================================
--- هذا الجزء هو "السر" الذي يجعله يختار المارينز فوراً مثل السكربتات الاحترافية
-getgenv().Team = "Marines" 
-
+getgenv().Team = "Marines"
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
 local Player = Players.LocalPlayer
 
--- [1] دالة اختيار الفريق الاحترافية (تستخدم نفس الطريقة الاحترافية)
-local function ForceTeam()
-    pcall(function()
-        local args = { [1] = "SetTeam", [2] = getgenv().Team }
-        ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
-    end)
+-- [1] تنبيهات على الشاشة (Notifications)
+local function Notify(text)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Fruit-Radar",
+        Text = text,
+        Duration = 5
+    })
 end
 
--- [2] محرك الفحص والتخزين (بدون انتظار القوائم)
-local function scan()
+-- [2] محرك الفحص الذكي (مع إشعار)
+local function scanAndStore()
     local fruits = game.Workspace:FindFirstChild("Fruits")
-    if not fruits then return end
+    if not fruits then return false end
     for _, v in pairs(fruits:GetChildren()) do
         if v:GetAttribute("Rarity") == "Mythical" then
-            warn("🎉 FOUND: " .. v.Name)
-            -- الانتقال الفوري
+            Notify("🎉 وجدنا: " .. v.Name)
             Player.Character.HumanoidRootPart.CFrame = v.CFrame
-            task.wait(0.5)
-            -- التخزين
+            task.wait(1)
             ReplicatedStorage.Remotes.CommF_:InvokeServer("StoreFruit", string.gsub(v.Name, " Fruit", ""))
             return true
         end
@@ -34,22 +32,28 @@ local function scan()
     return false
 end
 
--- [3] حلقة التشغيل المباشرة
+-- [3] محرك القفز الذكي (يتجاوز "السيرفر الفل")
+local function SmartHop()
+    Notify("جاري البحث عن سيرفر جديد...")
+    -- بدلاً من الاعتماد على الأزرار (التي قد تكون فول)، نستخدم دالة القفز العشوائي
+    -- نستخدم TeleportService للقفز الآمن
+    TeleportService:Teleport(game.PlaceId, Player)
+end
+
+-- [4] حلقة الأوتوبيلوت (الروبوت)
 task.spawn(function()
-    -- المحاولة الأولى فوراً عند التشغيل
-    ForceTeam() 
-    
+    Notify("الرادار يعمل الآن.. اترك الهاتف وأنا سأتولى الأمر!")
     while true do
-        if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-            if scan() then
-                task.wait(60) -- إذا وجد فاكهة، انتظر دقيقة
-            else
-                -- القفز الآمن (الذي لا يسبب 773)
-                game:GetService("TeleportService"):Teleport(game.PlaceId, Player)
-            end
+        -- التأكد من اختيار الفريق
+        pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer("SetTeam", getgenv().Team) end)
+        
+        -- الفحص
+        if scanAndStore() then
+            task.wait(120) -- انتظر دقيقتين بعد إيجاد الفاكهة
         else
-            ForceTeam() -- حاول اختيار الفريق مرة أخرى إذا لم تدخل العالم
+            -- محاولة تغيير السيرفر
+            SmartHop()
+            task.wait(45) -- وقت كافٍ للتحميل ولتجنب الحظر
         end
-        task.wait(20)
     end
 end)
