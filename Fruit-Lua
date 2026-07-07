@@ -1,81 +1,52 @@
--- ==========================================
--- Fruit-Lua | Flawless In-Game Server Hopper & Scanner
--- ==========================================
-local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
-local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
 
 local API_URL = "https://blox-fruits-production.up.railway.app/report_fruit"
 
--- متغيرات التحكم في السكربت
-_G.ScriptEnabled = true
-
--- ==========================================
--- [1] إنشاء واجهة المستخدم (GUI) البسيطة
--- ==========================================
+-- واجهة مستخدم مدمجة وبسيطة جداً
 local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
 local ToggleButton = Instance.new("TextButton")
-
 ScreenGui.Parent = game:GetService("CoreGui") or Player:WaitForChild("PlayerGui")
-ScreenGui.ResetOnSpawn = false
-
-MainFrame.Name = "FruitRadarGui"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.Position = UDim2.new(0.05, 0, 0.15, 0) -- يظهر في الجانب العلوي الأيسر لشاشة الهاتف
-MainFrame.Size = UDim2.new(0, 160, 0, 50)
-MainFrame.Active = true
-MainFrame.Draggable = true -- يمكنك سحبه بإصبعك في أي مكان بالشاشة
-
-ToggleButton.Name = "ToggleButton"
-ToggleButton.Parent = MainFrame
-ToggleButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113) -- لون أخضر عند التشغيل
-ToggleButton.Size = UDim2.new(1, 0, 1, 0)
-ToggleButton.Font = Enum.Font.SourceSansBold
-ToggleButton.Text = "الرادار: مشغل (ON)"
+ToggleButton.Parent = ScreenGui
+ToggleButton.Size = UDim2.new(0, 150, 0, 40)
+ToggleButton.Position = UDim2.new(0.05, 0, 0.1, 0)
+ToggleButton.Text = "الرادار: مشغل"
+ToggleButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextSize = 16
 
--- وظيفة زر التشغيل والإيقاف
+_G.Running = true
 ToggleButton.MouseButton1Click:Connect(function()
-    _G.ScriptEnabled = not _G.ScriptEnabled
-    if _G.ScriptEnabled then
-        ToggleButton.Text = "الرادار: مشغل (ON)"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-        print("[Fruit-Radar] تم إعادة تشغيل السكربت تلقائياً.")
-    else
-        ToggleButton.Text = "الرادار: متوقف (OFF)"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(231, 76, 60) -- لون أحمر عند الإيقاف
-        print("[Fruit-Radar] تم إيقاف السكربت مؤقتاً.")
-    end
+    _G.Running = not _G.Running
+    ToggleButton.Text = _G.Running and "الرادار: مشغل" or "الرادار: متوقف"
+    ToggleButton.BackgroundColor3 = _G.Running and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
 end)
 
--- ==========================================
--- [2] نظام الانتقال والمسح (In-Game Matchmaking)
--- ==========================================
-
--- دالة القفز الآمن باستخدام نظام اللعبة الرسمي
-local function safeInGameHop()
-    if not _G.ScriptEnabled then return end
-    print("[Fruit-Radar] جاري الانتقال الآمن عبر نظام روبلوكس الداخلي...")
+-- دالة القفز الاحترافية (تتجنب الحظر والخطأ 773)
+local function SmartHop()
+    if not _G.Running then return end
+    print("[Fruit-Radar] جاري تحضير الانتقال الآمن...")
     
     local success, err = pcall(function()
-        -- هذه الدالة تبحث تلقائياً عن سيرفر عام عشوائي متاح ومحدث بدون كاش خارجي
-        TeleportService:Teleport(game.PlaceId, Player)
+        -- جلب خيارات الانتقال الرسمية من روبلوكس لضمان التوافق مع البحار (Seas)
+        local teleportOptions = Instance.new("TeleportOptions")
+        teleportOptions.ShouldReserveServer = false
+        
+        -- القفز باستخدام الدالة الحديثة الآمنة TeleportAsync
+        TeleportService:TeleportAsync(game.PlaceId, {Player}, teleportOptions)
     end)
     
     if not success then
-        print("[Fruit-Radar] فشل الانتقال، إعادة المحاولة بعد 10 ثوانٍ...")
-        task.wait(10)
-        safeInGameHop()
+        print("[Fruit-Radar] فشل الانتقال، جاري المحاولة بالطريقة الاحتياطية...")
+        task.wait(5)
+        TeleportService:Teleport(game.PlaceId, Player)
     end
 end
 
--- دالة مسح ورصد الفواكه
-local function scanAndReport()
+-- دالة فحص الفواكه
+local function scan()
     local fruitsFolder = Workspace:FindFirstChild("Fruits")
     if not fruitsFolder then return false end
     
@@ -83,9 +54,6 @@ local function scanAndReport()
     for _, fruit in pairs(fruitsFolder:GetChildren()) do
         if fruit:GetAttribute("Rarity") == "Mythical" then
             found = true
-            print("🎉 [تنبيه] تم العثور على فاكهة أسطورية: " .. fruit.Name)
-            
-            -- إرسال البيانات إلى Railway الخاص بك
             local data = {
                 name = fruit.Name,
                 position = {x = fruit.Position.X, y = fruit.Position.Y, z = fruit.Position.Z},
@@ -99,25 +67,23 @@ local function scanAndReport()
     return found
 end
 
--- ==========================================
--- [3] الحلقة الرئيسية للتشغيل
--- ==========================================
+-- التشغيل مع تأخير أمان لحماية الحساب من كشف الحماية
 task.spawn(function()
-    task.wait(7) -- انتظار تحميل خريطة اللعبة عند الدخول لمنع الكراش
-    print("[Fruit-Radar] السكربت جاهز للعمل.")
+    print("[Fruit-Radar] انتظار أمان لمنع الخطأ 773... يرجى الانتظار")
+    task.wait(15) -- تأخير 15 ثانية كاملة لتهدئة نظام الحماية (Anti-Cheat)
     
     while true do
-        if _G.ScriptEnabled then
-            if not scanAndReport() then
-                print("[Fruit-Radar] لا توجد فواكه ميثيك، الاستعداد للقفز...")
-                task.wait(5) -- مهلة قصيرة لحماية الذاكرة
-                safeInGameHop()
-                task.wait(30) -- انتظار طويل لضمان انتهاء محاولة القفز
+        if _G.Running then
+            if not scan() then
+                print("[Fruit-Radar] لم يتم العثور على فاكهة، جاري تغيير السيرفر...")
+                task.wait(3)
+                SmartHop()
+                task.wait(30) -- انتظار طويل لضمان التنفيذ دون كراش
             else
-                -- إذا وجد فاكهة، يقوم بإيقاف السكربت تلقائياً حتى لا يقفز ويترك الفاكهة
-                _G.ScriptEnabled = false
-                ToggleButton.Text = "تم إيجاد فاكهة! (OFF)"
-                ToggleButton.BackgroundColor3 = Color3.fromRGB(241, 196, 15) -- لون أصفر للتنبيه
+                print("[Fruit-Radar] تم العثور على فاكهة! إيقاف السكربت لتلتقطها.")
+                _G.Running = false
+                ToggleButton.Text = "تم إيجاد فاكهة!"
+                ToggleButton.BackgroundColor3 = Color3.fromRGB(241, 196, 15)
                 break
             end
         end
