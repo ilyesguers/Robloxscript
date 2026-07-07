@@ -1,7 +1,14 @@
 -- ==========================================
--- Fruit-Lua V8 | Advanced Auto-Pilot & API Server Hopper
+-- Fruit-Lua V9 | Ultimate Auto-Pilot & Anti-Error Hopper
 -- ==========================================
 getgenv().Team = "Marines"
+
+-- قائمة الفواكه المستهدفة بدقة (تلقائياً يبحث عنها)
+local TargetFruits = {
+    "kitsune", "dragon", "leopard", "tiger", "gas", 
+    "dough", "trex", "yeti", "mammoth", "control", 
+    "venom", "shadow", "gravity"
+}
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,36 +16,44 @@ local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local Player = Players.LocalPlayer
 
--- دعم لمعظم المحاكيات (Executors) لجلب بيانات السيرفرات
 local httprequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
 
--- [1] تنبيهات على الشاشة (Notifications)
+-- [1] نظام التنبيهات الشاشية
 local function Notify(text, duration)
     pcall(function()
         game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Fruit-Radar V8",
+            Title = "Fruit-Radar V9",
             Text = text,
             Duration = duration or 5
         })
     end)
 end
 
--- [2] محرك الفحص والتخزين الآمن
+-- [2] محرك الفحص والتأمين الذكي للفواكه المستهدفة
 local function scanAndStore()
     local fruits = game.Workspace:FindFirstChild("Fruits")
     if not fruits then return false end
     
     for _, v in pairs(fruits:GetChildren()) do
-        -- يمكنك إزالة شرط "Mythical" إذا أردت جمع كل الفواكه
-        if v:GetAttribute("Rarity") == "Mythical" or string.find(v.Name, "Fruit") then
-            Notify("🎉 جاري تأمين: " .. v.Name, 10)
-            
+        local nameLower = string.lower(v.Name)
+        local shouldCollect = false
+        
+        -- التحقق إذا كانت الفاكهة من القائمة المطلوبة
+        for _, filter in pairs(TargetFruits) do
+            if string.find(nameLower, filter) then
+                shouldCollect = true
+                break
+            end
+        end
+        
+        if shouldCollect then
+            Notify("🎉 تم رصد فاكهة نادرة: " .. v.Name, 10)
             if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-                -- النقل الآمن للفاكهة
+                -- نقل اللاعب إلى مكان الفاكهة
                 Player.Character.HumanoidRootPart.CFrame = v.CFrame
-                task.wait(1.5) -- انتظار أطول قليلاً لضمان تحميل الخريطة
+                task.wait(1.5) -- انتظار التحميل
                 
-                -- محاولة التخزين
+                -- تخزين الفاكهة في الحقيبة
                 local fruitNameForStore = string.gsub(v.Name, " Fruit", "")
                 pcall(function()
                     ReplicatedStorage.Remotes.CommF_:InvokeServer("StoreFruit", fruitNameForStore)
@@ -50,69 +65,80 @@ local function scanAndStore()
     return false
 end
 
--- [3] محرك القفز الذكي المطور (API Server Hopper)
-local function AdvancedServerHop()
-    Notify("🔍 جاري جلب سيرفرات فارغة من الخوادم...", 5)
+-- [3] محرك القفز المتطور (تنزيل القائمة واختيار سيرفر غير ممتلئ)
+local function CustomAdvancedHopper()
+    Notify("🔍 جاري فحص خوادم روبلوكس لأسفل القائمة...", 5)
     
     if not httprequest then
-        Notify("⚠️ المحاكي الخاص بك لا يدعم HTTP Requests، سنحاول القفز العادي.", 5)
+        Notify("⚠️ محاكيك لا يدعم HTTP، سيتم النقل العشوائي الافتراضي.", 5)
         TeleportService:Teleport(game.PlaceId, Player)
         return
     end
 
-    local ApiUrl = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Desc&limit=100"
+    -- جلب 100 سيرفر دفعة واحدة لفحصهم لأسفل القائمة
+    local ApiUrl = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
     
     pcall(function()
         local response = httprequest({Url = ApiUrl, Method = "GET"})
         if response and response.StatusCode == 200 then
             local data = HttpService:JSONDecode(response.Body)
-            local availableServers = {}
+            local safeServers = {}
             
-            -- فلترة السيرفرات الممتلئة والسيرفر الحالي
             for _, server in pairs(data.data) do
-                if type(server) == "table" and server.playing < (server.maxPlayers - 1) and server.id ~= game.JobId then
-                    table.insert(availableServers, server.id)
+                -- تطبيق فكرتك: نختار سيرفرات بعيدة عن الامتلاء (مثلاً فيها من 2 إلى 8 لاعبين فقط) لتفادي خطأ 772 و 773
+                if type(server) == "table" and server.playing >= 2 and server.playing <= 8 and server.id ~= game.JobId then
+                    table.insert(safeServers, server.id)
                 end
             end
             
-            if #availableServers > 0 then
-                -- اختيار سيرفر عشوائي لتجنب الانضمام لنفس السيرفر الذي اختاره لاعبون آخرون
-                local randomServerId = availableServers[math.random(1, #availableServers)]
-                Notify("🚀 تم إيجاد سيرفر! جاري الانتقال...", 5)
-                task.wait(1)
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, randomServerId, Player)
+            if #safeServers > 0 then
+                -- اختيار سيرفر عشوائي من السيرفرات الآمنة والغير ممتلئة
+                local targetJobId = safeServers[math.random(1, #safeServers)]
+                Notify("🚀 تم العثور على سيرفر مريّح وغير ممتلئ! جاري النقل...", 5)
+                task.wait(0.5)
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, targetJobId, Player)
             else
-                Notify("⚠️ لا توجد سيرفرات فارغة حالياً، إعادة المحاولة...", 5)
-                task.wait(5)
-                TeleportService:Teleport(game.PlaceId, Player) -- إجراء احتياطي
+                -- إذا لم يجد سيرفر مثالي، يحاول الانتقال العادي ولا يتوقف
+                Notify("⚠️ السيرفرات مزدحمة، جاري المحاولة الشاملة...", 5)
+                TeleportService:Teleport(game.PlaceId, Player)
             end
         end
     end)
 end
 
--- [4] حلقة الأوتوبيلوت (الروبوت - Main Loop)
+-- [4] مصيدة الأخطاء التلقائية (هنا نقهر خطأ 773 و 772)
+-- إذا فشل النقل لأي سبب، اللعبة تخبر السكريبت فوراً ليعيد المحاولة دون أن يعلق الهاتف
+TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
+    Notify("❌ فشل النقل (" .. tostring(errorMessage) .. ")، لن نستسلم! جاري إعادة المحاولة فوراً...", 6)
+    task.wait(2)
+    CustomAdvancedHopper()
+end)
+
+-- [5] الحلقة الأساسية (Main AFK Loop)
 task.spawn(function()
-    task.wait(3) -- انتظار تحميل اللعبة بالكامل
-    Notify("⚙️ الرادار يعمل الآن.. يمكنك ترك الجهاز بأمان.", 10)
+    task.wait(4) -- انتظار دخول الخريطة واستقرار اللعبة
+    Notify("⚙️ سكريبت Fruit-Radar V9 يعمل الآن بنظام مكافحة الأخطاء.", 10)
     
     while true do
-        -- التأكد من اختيار فريق المارينز وتخطي القائمة
+        -- تجاوز شاشة اختيار الفريق واختيار المارينز تلقائياً
         pcall(function() 
             if Player.Team == nil or Player.Team.Name ~= getgenv().Team then
                 ReplicatedStorage.Remotes.CommF_:InvokeServer("SetTeam", getgenv().Team) 
             end
         end)
         
-        task.wait(2) -- إعطاء وقت للشخصية للظهور
+        task.wait(2)
         
-        -- عملية الفحص
+        -- الفحص وجمع الفواكه
         if scanAndStore() then
-            Notify("✅ تم التخزين بنجاح. استراحة قصيرة...", 5)
-            task.wait(120) -- انتظر دقيقتين إذا وجد فاكهة
+            Notify("✅ تم تأمين الفاكهة بنجاح في الانفنوري الخاص بك!", 5)
+            task.wait(5) -- وقت قصير للتأكيد ثم يكمل التنقل
+            CustomAdvancedHopper()
         else
-            -- إذا لم يجد شيئاً، اقفز لسيرفر آخر
-            AdvancedServerHop()
-            task.wait(45) -- وقت لعملية القفز (تمنع السكريبت من التشنج)
+            -- إذا لم يجد الفواكه المطلوبة، ينتقل فوراً للسيرفر التالي
+            CustomAdvancedHopper()
         end
+        
+        task.wait(30) -- حماية إضافية للحلقة لتجنب الكراش أثناء التحميل
     end
 end)
