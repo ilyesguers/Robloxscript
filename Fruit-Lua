@@ -1,173 +1,55 @@
 -- ==========================================
--- Fruit-Lua V3 | Auto-Team, Auto-Store & UI Hopper
+-- Fruit-Lua V6 | Native Team Injection
 -- ==========================================
+-- هذا الجزء هو "السر" الذي يجعله يختار المارينز فوراً مثل السكربتات الاحترافية
+getgenv().Team = "Marines" 
+
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local TweenService = game:GetService("TweenService")
-local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CoreGui = game:GetService("CoreGui")
 local Player = Players.LocalPlayer
 
-local API_URL = "https://blox-fruits-production.up.railway.app/report_fruit"
-_G.AutoHop = true
-
--- ==========================================
--- [1] واجهة المستخدم المحمية (لا تختفي)
--- ==========================================
-local guiName = "FruitRadarUltimate"
-if CoreGui:FindFirstChild(guiName) then CoreGui[guiName]:Destroy() end
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = guiName
-ScreenGui.Parent = CoreGui
-
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Parent = ScreenGui
-ToggleButton.Size = UDim2.new(0, 160, 0, 45)
-ToggleButton.Position = UDim2.new(0.05, 0, 0.15, 0)
-ToggleButton.Text = "الرادار: مشغل (ON)"
-ToggleButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.Font = Enum.Font.SourceSansBold
-ToggleButton.TextSize = 16
-ToggleButton.Active = true
-ToggleButton.Draggable = true
-
-ToggleButton.MouseButton1Click:Connect(function()
-    _G.AutoHop = not _G.AutoHop
-    ToggleButton.Text = _G.AutoHop and "الرادار: مشغل (ON)" or "الرادار: متوقف (OFF)"
-    ToggleButton.BackgroundColor3 = _G.AutoHop and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-end)
-
--- ==========================================
--- [2] الاختيار التلقائي للفريق (حل مشكلة التعليق)
--- ==========================================
-local function AutoSelectTeam()
+-- [1] دالة اختيار الفريق الاحترافية (تستخدم نفس الطريقة الاحترافية)
+local function ForceTeam()
     pcall(function()
-        local mainGui = Player.PlayerGui:WaitForChild("Main", 5)
-        if mainGui and mainGui:FindFirstChild("ChooseTeam") and mainGui.ChooseTeam.Visible then
-            print("[Fruit-Radar] جاري اختيار فريق Marines تلقائياً...")
-            -- إرسال أمر للسيرفر باختيار الفريق لضمان نزول الشخصية للخريطة
-            ReplicatedStorage.Remotes.CommF_:InvokeServer("SetTeam", "Marines")
-            task.wait(2)
-        end
+        local args = { [1] = "SetTeam", [2] = getgenv().Team }
+        ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
     end)
 end
 
--- ==========================================
--- [3] التخزين التلقائي للفاكهة
--- ==========================================
-local function AutoStoreFruit(fruitName)
-    print("[Fruit-Radar] جاري تخزين الفاكهة في الحقيبة...")
-    task.wait(1) -- انتظار لحظة للتأكد من دخول الفاكهة في يدك
-    local success = pcall(function()
-        ReplicatedStorage.Remotes.CommF_:InvokeServer("StoreFruit", fruitName)
-    end)
-    if success then print("✅ تم تخزين الفاكهة بنجاح!") end
-end
-
--- ==========================================
--- [4] الطيران والالتقاط
--- ==========================================
-local function FlyAndCollect(fruitInstance)
-    local character = Player.Character or Player.CharacterAdded:Wait()
-    local rootPart = character:WaitForChild("HumanoidRootPart")
-    
-    local distance = (rootPart.Position - fruitInstance.Position).Magnitude
-    local timeToFly = distance / 320 -- سرعة طيران آمنة
-    
-    local tweenInfo = TweenInfo.new(timeToFly, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = fruitInstance.CFrame})
-    
-    print("🚀 الطيران نحو: " .. fruitInstance.Name)
-    tween:Play()
-    tween.Completed:Wait()
-    
-    -- بمجرد الوصول، ننتظر التقاطها ثم نخزنها
-    task.wait(1)
-    -- إزالة كلمة " Fruit" من الاسم لأن اللعبة تخزنها باسمها الفعلي فقط (مثلاً Leopard وليس Leopard Fruit)
-    local cleanName = string.gsub(fruitInstance.Name, " Fruit", "")
-    AutoStoreFruit(cleanName)
-end
-
--- ==========================================
--- [5] البحث والتنقل الذكي (معالجة القائمة الفارغة)
--- ==========================================
-local function scanForMythical()
-    local fruitsFolder = Workspace:FindFirstChild("Fruits")
-    if not fruitsFolder then return false end
-    
-    for _, fruit in pairs(fruitsFolder:GetChildren()) do
-        if fruit:GetAttribute("Rarity") == "Mythical" then
-            print("🎉 [تنبيه] ميثيك موجودة: " .. fruit.Name)
-            -- إرسال الداتا إلى Railway الخاص بك
-            pcall(function()
-                local data = { name = fruit.Name, server_id = game.JobId }
-                HttpService:PostAsync(API_URL, HttpService:JSONEncode(data), Enum.HttpContentType.ApplicationJson)
-            end)
-            FlyAndCollect(fruit)
+-- [2] محرك الفحص والتخزين (بدون انتظار القوائم)
+local function scan()
+    local fruits = game.Workspace:FindFirstChild("Fruits")
+    if not fruits then return end
+    for _, v in pairs(fruits:GetChildren()) do
+        if v:GetAttribute("Rarity") == "Mythical" then
+            warn("🎉 FOUND: " .. v.Name)
+            -- الانتقال الفوري
+            Player.Character.HumanoidRootPart.CFrame = v.CFrame
+            task.wait(0.5)
+            -- التخزين
+            ReplicatedStorage.Remotes.CommF_:InvokeServer("StoreFruit", string.gsub(v.Name, " Fruit", ""))
             return true
         end
     end
     return false
 end
 
-local function SmartUIHop()
-    print("[Fruit-Radar] جاري البحث عن سيرفر عبر القائمة...")
-    local mainGui = Player.PlayerGui:WaitForChild("Main")
-    local serverButton = mainGui:FindFirstChild("ServerButton") or mainGui:FindFirstChild("Servers")
-    
-    -- محاولة فتح قائمة السيرفرات وإغلاقها إذا كانت فارغة
-    for attempt = 1, 3 do
-        local joinButtons = {}
-        for _, obj in pairs(Player.PlayerGui:GetDescendants()) do
-            if obj:IsA("TextButton") and (obj.Text == "Join" or obj.Name == "JoinButton") and obj.Visible then
-                table.insert(joinButtons, obj)
-            end
-        end
-        
-        -- إذا وجد أزرار، يختار واحداً من المنتصف
-        if #joinButtons > 0 then
-            local startIndex = math.floor(#joinButtons / 2)
-            local randomBtn = joinButtons[math.random(startIndex, #joinButtons)]
-            print("🔄 جاري الانضمام لسيرفر جديد...")
-            if getconnections then
-                for _, conn in pairs(getconnections(randomBtn.MouseButton1Click)) do conn:Fire() end
-            elseif firesignal then
-                firesignal(randomBtn.MouseButton1Click)
-            end
-            return
-        else
-            print("⚠️ القائمة فارغة أو لم تفتح، جاري تحديثها (المحاولة " .. attempt .. ")")
-            -- محاكاة الضغط على زر السيرفرات لفتح/إغلاق القائمة
-            if serverButton and getconnections then
-                for _, conn in pairs(getconnections(serverButton.MouseButton1Click)) do conn:Fire() end
-            end
-            task.wait(3) -- انتظار تحميل الأسماء
-        end
-    end
-    print("❌ فشل إيجاد أزرار السيرفرات، يرجى فتح القائمة يدوياً مرة واحدة.")
-end
-
--- ==========================================
--- [6] حلقة التشغيل الرئيسية
--- ==========================================
+-- [3] حلقة التشغيل المباشرة
 task.spawn(function()
-    task.wait(5)
-    AutoSelectTeam() -- اختيار فريق تلقائياً عند الدخول
-    task.wait(5) -- انتظار تحميل الماب بعد النزول
+    -- المحاولة الأولى فوراً عند التشغيل
+    ForceTeam() 
     
-    while _G.AutoHop do
-        if scanForMythical() then
-            _G.AutoHop = false
-            ToggleButton.Text = "تم إيجاد وتخزين فاكهة!"
-            ToggleButton.BackgroundColor3 = Color3.fromRGB(241, 196, 15)
-            break
+    while true do
+        if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+            if scan() then
+                task.wait(60) -- إذا وجد فاكهة، انتظر دقيقة
+            else
+                -- القفز الآمن (الذي لا يسبب 773)
+                game:GetService("TeleportService"):Teleport(game.PlaceId, Player)
+            end
         else
-            print("[Fruit-Radar] لا يوجد ميثيك، جاري تغيير السيرفر...")
-            SmartUIHop()
-            task.wait(20) -- مهلة للانتقال
+            ForceTeam() -- حاول اختيار الفريق مرة أخرى إذا لم تدخل العالم
         end
+        task.wait(20)
     end
 end)
