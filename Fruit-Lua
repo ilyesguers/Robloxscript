@@ -1,9 +1,9 @@
 -- ==========================================
--- Fruit-Lua V9 | Ultimate Auto-Pilot & Anti-Error Hopper
+-- Fruit-Lua V10 | Physical UI Automation & Anti-773 Daemon
 -- ==========================================
 getgenv().Team = "Marines"
 
--- قائمة الفواكه المستهدفة بدقة (تلقائياً يبحث عنها)
+-- قائمة الفواكه المستهدفة
 local TargetFruits = {
     "kitsune", "dragon", "leopard", "tiger", "gas", 
     "dough", "trex", "yeti", "mammoth", "control", 
@@ -13,23 +13,50 @@ local TargetFruits = {
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
 local Player = Players.LocalPlayer
 
-local httprequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+-- دالة محاكاة الضغط الآمن على الأزرار
+local function safeClick(button)
+    if not button then return end
+    pcall(function()
+        if firesignal then
+            firesignal(button.MouseButton1Click)
+            firesignal(button.Activated)
+        else
+            if button.MouseButton1Click then button.MouseButton1Click:Fire() end
+            if button.Activated then button.Activated:Fire() end
+        end
+    end)
+end
 
--- [1] نظام التنبيهات الشاشية
+-- [1] تنبيهات الشاشة
 local function Notify(text, duration)
     pcall(function()
         game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Fruit-Radar V9",
+            Title = "Fruit-Radar V10",
             Text = text,
-            Duration = duration or 5
+            Duration = duration or 4
         })
     end)
 end
 
--- [2] محرك الفحص والتأمين الذكي للفواكه المستهدفة
+-- [2] قاهر الأخطاء تلقائياً (تخطي شاشة خطأ 773 / 772 المزعجة)
+local function dismissErrorPopup()
+    local robloxPrompt = CoreGui:FindFirstChild("RobloxPromptGui")
+    if robloxPrompt then
+        local okButton = robloxPrompt:FindFirstChild("OkButton", true)
+        if okButton and okButton.Visible then
+            Notify("💥 تم رصد عدونا اللدود (Error)! جاري إغلاقه تلقائياً...", 4)
+            safeClick(okButton)
+            task.wait(2)
+            return true
+        end
+    end
+    return false
+end
+
+-- [3] محرك الفحص والتخزين التلقائي للفواكه
 local function scanAndStore()
     local fruits = game.Workspace:FindFirstChild("Fruits")
     if not fruits then return false end
@@ -38,7 +65,6 @@ local function scanAndStore()
         local nameLower = string.lower(v.Name)
         local shouldCollect = false
         
-        -- التحقق إذا كانت الفاكهة من القائمة المطلوبة
         for _, filter in pairs(TargetFruits) do
             if string.find(nameLower, filter) then
                 shouldCollect = true
@@ -47,13 +73,10 @@ local function scanAndStore()
         end
         
         if shouldCollect then
-            Notify("🎉 تم رصد فاكهة نادرة: " .. v.Name, 10)
+            Notify("🎉 رادار الفواكه وجد: " .. v.Name, 10)
             if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-                -- نقل اللاعب إلى مكان الفاكهة
                 Player.Character.HumanoidRootPart.CFrame = v.CFrame
-                task.wait(1.5) -- انتظار التحميل
-                
-                -- تخزين الفاكهة في الحقيبة
+                task.wait(1.5)
                 local fruitNameForStore = string.gsub(v.Name, " Fruit", "")
                 pcall(function()
                     ReplicatedStorage.Remotes.CommF_:InvokeServer("StoreFruit", fruitNameForStore)
@@ -65,62 +88,75 @@ local function scanAndStore()
     return false
 end
 
--- [3] محرك القفز المتطور (تنزيل القائمة واختيار سيرفر غير ممتلئ)
-local function CustomAdvancedHopper()
-    Notify("🔍 جاري فحص خوادم روبلوكس لأسفل القائمة...", 5)
-    
-    if not httprequest then
-        Notify("⚠️ محاكيك لا يدعم HTTP، سيتم النقل العشوائي الافتراضي.", 5)
-        TeleportService:Teleport(game.PlaceId, Player)
-        return
-    end
+-- [4] فتح القائمة واختيار سيرفر آمن لأسفل القائمة (UI Server Hopper)
+local function OpenMenuAndHop()
+    -- أولاً: التأكد من عدم وجود أي نافذة خطأ مغطية على الشاشة
+    dismissErrorPopup()
 
-    -- جلب 100 سيرفر دفعة واحدة لفحصهم لأسفل القائمة
-    local ApiUrl = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
+    Notify("🤖 جاري فتح قائمة السيرفرات العلوية...", 3)
     
-    pcall(function()
-        local response = httprequest({Url = ApiUrl, Method = "GET"})
-        if response and response.StatusCode == 200 then
-            local data = HttpService:JSONDecode(response.Body)
-            local safeServers = {}
-            
-            for _, server in pairs(data.data) do
-                -- تطبيق فكرتك: نختار سيرفرات بعيدة عن الامتلاء (مثلاً فيها من 2 إلى 8 لاعبين فقط) لتفادي خطأ 772 و 773
-                if type(server) == "table" and server.playing >= 2 and server.playing <= 8 and server.id ~= game.JobId then
-                    table.insert(safeServers, server.id)
-                end
-            end
-            
-            if #safeServers > 0 then
-                -- اختيار سيرفر عشوائي من السيرفرات الآمنة والغير ممتلئة
-                local targetJobId = safeServers[math.random(1, #safeServers)]
-                Notify("🚀 تم العثور على سيرفر مريّح وغير ممتلئ! جاري النقل...", 5)
-                task.wait(0.5)
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, targetJobId, Player)
-            else
-                -- إذا لم يجد سيرفر مثالي، يحاول الانتقال العادي ولا يتوقف
-                Notify("⚠️ السيرفرات مزدحمة، جاري المحاولة الشاملة...", 5)
-                TeleportService:Teleport(game.PlaceId, Player)
+    -- البحث عن زر قائمة السيرفرات في أعلى يمين الشاشة وضغطه
+    local serverMenuButton = nil
+    for _, v in pairs(Player.PlayerGui:GetDescendants()) do
+        if v:IsA("ImageButton") or v:IsA("TextButton") then
+            if string.find(string.lower(v.Name), "server") or (v.AbsolutePosition.X > 600 and v.AbsolutePosition.Y < 120 and v.Visible) then
+                serverMenuButton = v
+                break
             end
         end
-    end)
+    end
+
+    if serverMenuButton then
+        safeClick(serverMenuButton)
+        task.wait(3) -- وقت كافٍ لتظهر القائمة أمامك وتتحمل السيرفرات بالكامل
+        
+        -- تجميع كل أزرار الـ "Join" الموجودة داخل القائمة المفتوحة
+        local joinButtons = {}
+        for _, v in pairs(Player.PlayerGui:GetDescendants()) do
+            if v:IsA("TextButton") and (v.Text == "Join" or string.find(v.Name, "Join")) and v.Visible then
+                table.insert(joinButtons, v)
+            end
+        end
+        
+        if #joinButtons > 0 then
+            -- تطبيق فكرتك: النزول لأسفل القائمة وتخطي أول 5 سيرفرات (لأنها دائماً ممتلئة وتسبب الخطأ)
+            local startIndex = math.min(6, #joinButtons)
+            local endIndex = math.min(18, #joinButtons)
+            
+            if startIndex <= endIndex then
+                local targetBtn = joinButtons[math.random(startIndex, endIndex)]
+                Notify("🚀 تم اختيار سيرفر غير ممتلئ بنجاح! جاري الدخول...", 4)
+                safeClick(targetBtn)
+            else
+                -- إذا كانت القائمة قصيرة، يختار آخر سيرفر متاح لضمان البعد عن الازدحام
+                safeClick(joinButtons[#joinButtons])
+            end
+        else
+            Notify("⚠️ لم تظهر أزرار السيرفرات بعد، إعادة المحاولة...", 3)
+        end
+    else
+        Notify("❌ تعذر العثور على زر القائمة العلوي، جاري النقل الاحتياطي...", 3)
+        TeleportService:Teleport(game.PlaceId, Player)
+    end
 end
 
--- [4] مصيدة الأخطاء التلقائية (هنا نقهر خطأ 773 و 772)
--- إذا فشل النقل لأي سبب، اللعبة تخبر السكريبت فوراً ليعيد المحاولة دون أن يعلق الهاتف
-TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
-    Notify("❌ فشل النقل (" .. tostring(errorMessage) .. ")، لن نستسلم! جاري إعادة المحاولة فوراً...", 6)
-    task.wait(2)
-    CustomAdvancedHopper()
+-- ربط فوري في حال فشل الانتقال أثناء النوم ليعيد تكرار المحاولة فوراً وبدون توقف
+TeleportService.TeleportInitFailed:Connect(function()
+    task.wait(1)
+    dismissErrorPopup()
+    OpenMenuAndHop()
 end)
 
 -- [5] الحلقة الأساسية (Main AFK Loop)
 task.spawn(function()
-    task.wait(4) -- انتظار دخول الخريطة واستقرار اللعبة
-    Notify("⚙️ سكريبت Fruit-Radar V9 يعمل الآن بنظام مكافحة الأخطاء.", 10)
+    task.wait(5)
+    Notify("⚙️ تم تشغيل الرادار بنظام محاكاة القائمة المفتوحة ومكافحة الأخطاء.", 8)
     
     while true do
-        -- تجاوز شاشة اختيار الفريق واختيار المارينز تلقائياً
+        -- التحقق التلقائي من إغلاق النوافذ المزعجة
+        dismissErrorPopup()
+        
+        -- اختيار فريق المارينز وتخطي القائمة الترحيبية
         pcall(function() 
             if Player.Team == nil or Player.Team.Name ~= getgenv().Team then
                 ReplicatedStorage.Remotes.CommF_:InvokeServer("SetTeam", getgenv().Team) 
@@ -129,16 +165,16 @@ task.spawn(function()
         
         task.wait(2)
         
-        -- الفحص وجمع الفواكه
+        -- بدء الفحص
         if scanAndStore() then
-            Notify("✅ تم تأمين الفاكهة بنجاح في الانفنوري الخاص بك!", 5)
-            task.wait(5) -- وقت قصير للتأكيد ثم يكمل التنقل
-            CustomAdvancedHopper()
+            Notify("✅ تم تأمين الفاكهة في الحقيبة! جاري الانتقال لسيرفر آخر...", 4)
+            task.wait(3)
+            OpenMenuAndHop()
         else
-            -- إذا لم يجد الفواكه المطلوبة، ينتقل فوراً للسيرفر التالي
-            CustomAdvancedHopper()
+            -- إذا لم يجد الفواكه المطلوبة، يفتح القائمة وينتقل فوراً
+            OpenMenuAndHop()
         end
         
-        task.wait(30) -- حماية إضافية للحلقة لتجنب الكراش أثناء التحميل
+        task.wait(40) -- حماية تمنع تعليق اللعبة أثناء شاشات التحميل الممتدة
     end
 end)
