@@ -1,59 +1,43 @@
-local TeleportService = game:GetService("TeleportService")
+-- ==========================================
+-- Fruit-Lua | UI-Automated Hopper & Auto-Fly
+-- ==========================================
 local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
+local Player = Players.LocalPlayer
 
 local API_URL = "https://blox-fruits-production.up.railway.app/report_fruit"
+_G.AutoHop = true
 
--- واجهة مستخدم مدمجة وبسيطة جداً
-local ScreenGui = Instance.new("ScreenGui")
-local ToggleButton = Instance.new("TextButton")
-ScreenGui.Parent = game:GetService("CoreGui") or Player:WaitForChild("PlayerGui")
-ToggleButton.Parent = ScreenGui
-ToggleButton.Size = UDim2.new(0, 150, 0, 40)
-ToggleButton.Position = UDim2.new(0.05, 0, 0.1, 0)
-ToggleButton.Text = "الرادار: مشغل"
-ToggleButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-_G.Running = true
-ToggleButton.MouseButton1Click:Connect(function()
-    _G.Running = not _G.Running
-    ToggleButton.Text = _G.Running and "الرادار: مشغل" or "الرادار: متوقف"
-    ToggleButton.BackgroundColor3 = _G.Running and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-end)
-
--- دالة القفز الاحترافية (تتجنب الحظر والخطأ 773)
-local function SmartHop()
-    if not _G.Running then return end
-    print("[Fruit-Radar] جاري تحضير الانتقال الآمن...")
+-- [1] دالة الطيران الآمن نحو الفاكهة (لتجنب الحظر)
+local function FlyToFruit(targetCFrame)
+    local character = Player.Character or Player.CharacterAdded:Wait()
+    local rootPart = character:WaitForChild("HumanoidRootPart")
     
-    local success, err = pcall(function()
-        -- جلب خيارات الانتقال الرسمية من روبلوكس لضمان التوافق مع البحار (Seas)
-        local teleportOptions = Instance.new("TeleportOptions")
-        teleportOptions.ShouldReserveServer = false
-        
-        -- القفز باستخدام الدالة الحديثة الآمنة TeleportAsync
-        TeleportService:TeleportAsync(game.PlaceId, {Player}, teleportOptions)
-    end)
+    -- حساب المسافة لضبط سرعة الطيران (300 تعتبر سريعة وآمنة)
+    local distance = (rootPart.Position - targetCFrame.Position).Magnitude
+    local timeToFly = distance / 300 
     
-    if not success then
-        print("[Fruit-Radar] فشل الانتقال، جاري المحاولة بالطريقة الاحتياطية...")
-        task.wait(5)
-        TeleportService:Teleport(game.PlaceId, Player)
-    end
+    local tweenInfo = TweenInfo.new(timeToFly, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+    
+    print("[Fruit-Radar] 🚀 جاري الطيران نحو الفاكهة الأسطورية!")
+    tween:Play()
+    tween.Completed:Wait()
+    print("[Fruit-Radar] ✅ وصلنا للفاكهة! التقطها بسرعة.")
 end
 
--- دالة فحص الفواكه
-local function scan()
+-- [2] دالة المسح وإرسال البيانات
+local function scanAndCollect()
     local fruitsFolder = Workspace:FindFirstChild("Fruits")
     if not fruitsFolder then return false end
     
-    local found = false
     for _, fruit in pairs(fruitsFolder:GetChildren()) do
         if fruit:GetAttribute("Rarity") == "Mythical" then
-            found = true
+            print("🎉 [تنبيه] تم العثور على فاكهة ميثيك!")
+            
+            -- إرسال البيانات فوراً
             local data = {
                 name = fruit.Name,
                 position = {x = fruit.Position.X, y = fruit.Position.Y, z = fruit.Position.Z},
@@ -62,31 +46,68 @@ local function scan()
             pcall(function()
                 HttpService:PostAsync(API_URL, HttpService:JSONEncode(data), Enum.HttpContentType.ApplicationJson)
             end)
+            
+            -- الطيران للفاكهة
+            FlyToFruit(fruit.CFrame)
+            return true
         end
     end
-    return found
+    return false
 end
 
--- التشغيل مع تأخير أمان لحماية الحساب من كشف الحماية
-task.spawn(function()
-    print("[Fruit-Radar] انتظار أمان لمنع الخطأ 773... يرجى الانتظار")
-    task.wait(15) -- تأخير 15 ثانية كاملة لتهدئة نظام الحماية (Anti-Cheat)
+-- [3] دالة ضغط أزرار القائمة (الخدعة العبقرية)
+local function clickInGameServerJoin()
+    local joinButtons = {}
     
-    while true do
-        if _G.Running then
-            if not scan() then
-                print("[Fruit-Radar] لم يتم العثور على فاكهة، جاري تغيير السيرفر...")
-                task.wait(3)
-                SmartHop()
-                task.wait(30) -- انتظار طويل لضمان التنفيذ دون كراش
-            else
-                print("[Fruit-Radar] تم العثور على فاكهة! إيقاف السكربت لتلتقطها.")
-                _G.Running = false
-                ToggleButton.Text = "تم إيجاد فاكهة!"
-                ToggleButton.BackgroundColor3 = Color3.fromRGB(241, 196, 15)
-                break
+    -- البحث في كل واجهات اللعبة عن أزرار الانضمام للسيرفرات
+    for _, obj in pairs(Player.PlayerGui:GetDescendants()) do
+        if obj:IsA("TextButton") and (obj.Text == "Join" or obj.Name == "JoinButton") then
+            -- نأخذ الأزرار الظاهرة فقط
+            if obj.Visible then
+                table.insert(joinButtons, obj)
             end
         end
-        task.wait(2)
+    end
+    
+    if #joinButtons > 0 then
+        -- اختيار سيرفر من المنتصف أو النهاية (كما اقترحت)
+        local startIndex = math.floor(#joinButtons / 2)
+        if startIndex < 1 then startIndex = 1 end
+        local randomBtn = joinButtons[math.random(startIndex, #joinButtons)]
+        
+        print("[Fruit-Radar] جاري محاكاة ضغطة زر 'Join' على سيرفر من القائمة...")
+        
+        -- إجبار اللعبة على تنفيذ أمر الزر (محاكاة الضغطة)
+        if getconnections then
+            for _, connection in pairs(getconnections(randomBtn.MouseButton1Click)) do
+                connection:Fire()
+            end
+        elseif firesignal then
+            firesignal(randomBtn.MouseButton1Click)
+        else
+            print("⚠️ مشغلك لا يدعم محاكاة النقرات، يرجى الضغط يدوياً.")
+        end
+    else
+        print("[Fruit-Radar] ⚠️ لم أجد أزرار السيرفرات.")
+        print("💡 تلميح: افتح قائمة السيرفرات يدوياً مرة واحدة ليتمكن السكربت من رؤية الأزرار.")
+    end
+end
+
+-- [4] حلقة التشغيل الرئيسية
+task.spawn(function()
+    task.wait(8) -- انتظار تحميل الخريطة لمنع الكراش
+    
+    while _G.AutoHop do
+        if scanAndCollect() then
+            -- إذا وجد الفاكهة يوقف القفز فوراً
+            _G.AutoHop = false
+            print("멈 تم إيقاف القفز، الفاكهة أمامك!")
+            break
+        else
+            print("[Fruit-Radar] لا يوجد شيء.. جاري الضغط على سيرفر آخر.")
+            task.wait(2)
+            clickInGameServerJoin()
+            task.wait(25) -- انتظار طويل لكي يأخذ أمر النقل وقته دون كراش
+        end
     end
 end)
