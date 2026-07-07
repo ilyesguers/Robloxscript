@@ -1,59 +1,118 @@
 -- ==========================================
--- Fruit-Lua V7 | Auto-Pilot & Smart Hopper
+-- Fruit-Lua V8 | Advanced Auto-Pilot & API Server Hopper
 -- ==========================================
 getgenv().Team = "Marines"
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
 local Player = Players.LocalPlayer
 
+-- دعم لمعظم المحاكيات (Executors) لجلب بيانات السيرفرات
+local httprequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+
 -- [1] تنبيهات على الشاشة (Notifications)
-local function Notify(text)
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Fruit-Radar",
-        Text = text,
-        Duration = 5
-    })
+local function Notify(text, duration)
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Fruit-Radar V8",
+            Text = text,
+            Duration = duration or 5
+        })
+    end)
 end
 
--- [2] محرك الفحص الذكي (مع إشعار)
+-- [2] محرك الفحص والتخزين الآمن
 local function scanAndStore()
     local fruits = game.Workspace:FindFirstChild("Fruits")
     if not fruits then return false end
+    
     for _, v in pairs(fruits:GetChildren()) do
-        if v:GetAttribute("Rarity") == "Mythical" then
-            Notify("🎉 وجدنا: " .. v.Name)
-            Player.Character.HumanoidRootPart.CFrame = v.CFrame
-            task.wait(1)
-            ReplicatedStorage.Remotes.CommF_:InvokeServer("StoreFruit", string.gsub(v.Name, " Fruit", ""))
-            return true
+        -- يمكنك إزالة شرط "Mythical" إذا أردت جمع كل الفواكه
+        if v:GetAttribute("Rarity") == "Mythical" or string.find(v.Name, "Fruit") then
+            Notify("🎉 جاري تأمين: " .. v.Name, 10)
+            
+            if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+                -- النقل الآمن للفاكهة
+                Player.Character.HumanoidRootPart.CFrame = v.CFrame
+                task.wait(1.5) -- انتظار أطول قليلاً لضمان تحميل الخريطة
+                
+                -- محاولة التخزين
+                local fruitNameForStore = string.gsub(v.Name, " Fruit", "")
+                pcall(function()
+                    ReplicatedStorage.Remotes.CommF_:InvokeServer("StoreFruit", fruitNameForStore)
+                end)
+                return true
+            end
         end
     end
     return false
 end
 
--- [3] محرك القفز الذكي (يتجاوز "السيرفر الفل")
-local function SmartHop()
-    Notify("جاري البحث عن سيرفر جديد...")
-    -- بدلاً من الاعتماد على الأزرار (التي قد تكون فول)، نستخدم دالة القفز العشوائي
-    -- نستخدم TeleportService للقفز الآمن
-    TeleportService:Teleport(game.PlaceId, Player)
+-- [3] محرك القفز الذكي المطور (API Server Hopper)
+local function AdvancedServerHop()
+    Notify("🔍 جاري جلب سيرفرات فارغة من الخوادم...", 5)
+    
+    if not httprequest then
+        Notify("⚠️ المحاكي الخاص بك لا يدعم HTTP Requests، سنحاول القفز العادي.", 5)
+        TeleportService:Teleport(game.PlaceId, Player)
+        return
+    end
+
+    local ApiUrl = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Desc&limit=100"
+    
+    pcall(function()
+        local response = httprequest({Url = ApiUrl, Method = "GET"})
+        if response and response.StatusCode == 200 then
+            local data = HttpService:JSONDecode(response.Body)
+            local availableServers = {}
+            
+            -- فلترة السيرفرات الممتلئة والسيرفر الحالي
+            for _, server in pairs(data.data) do
+                if type(server) == "table" and server.playing < (server.maxPlayers - 1) and server.id ~= game.JobId then
+                    table.insert(availableServers, server.id)
+                end
+            end
+            
+            if #availableServers > 0 then
+                -- اختيار سيرفر عشوائي لتجنب الانضمام لنفس السيرفر الذي اختاره لاعبون آخرون
+                local randomServerId = availableServers[math.random(1, #availableServers)]
+                Notify("🚀 تم إيجاد سيرفر! جاري الانتقال...", 5)
+                task.wait(1)
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, randomServerId, Player)
+            else
+                Notify("⚠️ لا توجد سيرفرات فارغة حالياً، إعادة المحاولة...", 5)
+                task.wait(5)
+                TeleportService:Teleport(game.PlaceId, Player) -- إجراء احتياطي
+            end
+        end
+    end)
 end
 
--- [4] حلقة الأوتوبيلوت (الروبوت)
+-- [4] حلقة الأوتوبيلوت (الروبوت - Main Loop)
 task.spawn(function()
-    Notify("الرادار يعمل الآن.. اترك الهاتف وأنا سأتولى الأمر!")
+    task.wait(3) -- انتظار تحميل اللعبة بالكامل
+    Notify("⚙️ الرادار يعمل الآن.. يمكنك ترك الجهاز بأمان.", 10)
+    
     while true do
-        -- التأكد من اختيار الفريق
-        pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer("SetTeam", getgenv().Team) end)
+        -- التأكد من اختيار فريق المارينز وتخطي القائمة
+        pcall(function() 
+            if Player.Team == nil or Player.Team.Name ~= getgenv().Team then
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("SetTeam", getgenv().Team) 
+            end
+        end)
         
-        -- الفحص
+        task.wait(2) -- إعطاء وقت للشخصية للظهور
+        
+        -- عملية الفحص
         if scanAndStore() then
-            task.wait(120) -- انتظر دقيقتين بعد إيجاد الفاكهة
+            Notify("✅ تم التخزين بنجاح. استراحة قصيرة...", 5)
+            task.wait(120) -- انتظر دقيقتين إذا وجد فاكهة
         else
-            -- محاولة تغيير السيرفر
-            SmartHop()
-            task.wait(45) -- وقت كافٍ للتحميل ولتجنب الحظر
+            -- إذا لم يجد شيئاً، اقفز لسيرفر آخر
+            AdvancedServerHop()
+            task.wait(45) -- وقت لعملية القفز (تمنع السكريبت من التشنج)
         end
     end
 end)
