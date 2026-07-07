@@ -1,113 +1,173 @@
 -- ==========================================
--- Fruit-Lua | UI-Automated Hopper & Auto-Fly
+-- Fruit-Lua V3 | Auto-Team, Auto-Store & UI Hopper
 -- ==========================================
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
 local Player = Players.LocalPlayer
 
 local API_URL = "https://blox-fruits-production.up.railway.app/report_fruit"
 _G.AutoHop = true
 
--- [1] دالة الطيران الآمن نحو الفاكهة (لتجنب الحظر)
-local function FlyToFruit(targetCFrame)
+-- ==========================================
+-- [1] واجهة المستخدم المحمية (لا تختفي)
+-- ==========================================
+local guiName = "FruitRadarUltimate"
+if CoreGui:FindFirstChild(guiName) then CoreGui[guiName]:Destroy() end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = guiName
+ScreenGui.Parent = CoreGui
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Parent = ScreenGui
+ToggleButton.Size = UDim2.new(0, 160, 0, 45)
+ToggleButton.Position = UDim2.new(0.05, 0, 0.15, 0)
+ToggleButton.Text = "الرادار: مشغل (ON)"
+ToggleButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.TextSize = 16
+ToggleButton.Active = true
+ToggleButton.Draggable = true
+
+ToggleButton.MouseButton1Click:Connect(function()
+    _G.AutoHop = not _G.AutoHop
+    ToggleButton.Text = _G.AutoHop and "الرادار: مشغل (ON)" or "الرادار: متوقف (OFF)"
+    ToggleButton.BackgroundColor3 = _G.AutoHop and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+end)
+
+-- ==========================================
+-- [2] الاختيار التلقائي للفريق (حل مشكلة التعليق)
+-- ==========================================
+local function AutoSelectTeam()
+    pcall(function()
+        local mainGui = Player.PlayerGui:WaitForChild("Main", 5)
+        if mainGui and mainGui:FindFirstChild("ChooseTeam") and mainGui.ChooseTeam.Visible then
+            print("[Fruit-Radar] جاري اختيار فريق Marines تلقائياً...")
+            -- إرسال أمر للسيرفر باختيار الفريق لضمان نزول الشخصية للخريطة
+            ReplicatedStorage.Remotes.CommF_:InvokeServer("SetTeam", "Marines")
+            task.wait(2)
+        end
+    end)
+end
+
+-- ==========================================
+-- [3] التخزين التلقائي للفاكهة
+-- ==========================================
+local function AutoStoreFruit(fruitName)
+    print("[Fruit-Radar] جاري تخزين الفاكهة في الحقيبة...")
+    task.wait(1) -- انتظار لحظة للتأكد من دخول الفاكهة في يدك
+    local success = pcall(function()
+        ReplicatedStorage.Remotes.CommF_:InvokeServer("StoreFruit", fruitName)
+    end)
+    if success then print("✅ تم تخزين الفاكهة بنجاح!") end
+end
+
+-- ==========================================
+-- [4] الطيران والالتقاط
+-- ==========================================
+local function FlyAndCollect(fruitInstance)
     local character = Player.Character or Player.CharacterAdded:Wait()
     local rootPart = character:WaitForChild("HumanoidRootPart")
     
-    -- حساب المسافة لضبط سرعة الطيران (300 تعتبر سريعة وآمنة)
-    local distance = (rootPart.Position - targetCFrame.Position).Magnitude
-    local timeToFly = distance / 300 
+    local distance = (rootPart.Position - fruitInstance.Position).Magnitude
+    local timeToFly = distance / 320 -- سرعة طيران آمنة
     
     local tweenInfo = TweenInfo.new(timeToFly, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = fruitInstance.CFrame})
     
-    print("[Fruit-Radar] 🚀 جاري الطيران نحو الفاكهة الأسطورية!")
+    print("🚀 الطيران نحو: " .. fruitInstance.Name)
     tween:Play()
     tween.Completed:Wait()
-    print("[Fruit-Radar] ✅ وصلنا للفاكهة! التقطها بسرعة.")
+    
+    -- بمجرد الوصول، ننتظر التقاطها ثم نخزنها
+    task.wait(1)
+    -- إزالة كلمة " Fruit" من الاسم لأن اللعبة تخزنها باسمها الفعلي فقط (مثلاً Leopard وليس Leopard Fruit)
+    local cleanName = string.gsub(fruitInstance.Name, " Fruit", "")
+    AutoStoreFruit(cleanName)
 end
 
--- [2] دالة المسح وإرسال البيانات
-local function scanAndCollect()
+-- ==========================================
+-- [5] البحث والتنقل الذكي (معالجة القائمة الفارغة)
+-- ==========================================
+local function scanForMythical()
     local fruitsFolder = Workspace:FindFirstChild("Fruits")
     if not fruitsFolder then return false end
     
     for _, fruit in pairs(fruitsFolder:GetChildren()) do
         if fruit:GetAttribute("Rarity") == "Mythical" then
-            print("🎉 [تنبيه] تم العثور على فاكهة ميثيك!")
-            
-            -- إرسال البيانات فوراً
-            local data = {
-                name = fruit.Name,
-                position = {x = fruit.Position.X, y = fruit.Position.Y, z = fruit.Position.Z},
-                server_id = game.JobId
-            }
+            print("🎉 [تنبيه] ميثيك موجودة: " .. fruit.Name)
+            -- إرسال الداتا إلى Railway الخاص بك
             pcall(function()
+                local data = { name = fruit.Name, server_id = game.JobId }
                 HttpService:PostAsync(API_URL, HttpService:JSONEncode(data), Enum.HttpContentType.ApplicationJson)
             end)
-            
-            -- الطيران للفاكهة
-            FlyToFruit(fruit.CFrame)
+            FlyAndCollect(fruit)
             return true
         end
     end
     return false
 end
 
--- [3] دالة ضغط أزرار القائمة (الخدعة العبقرية)
-local function clickInGameServerJoin()
-    local joinButtons = {}
+local function SmartUIHop()
+    print("[Fruit-Radar] جاري البحث عن سيرفر عبر القائمة...")
+    local mainGui = Player.PlayerGui:WaitForChild("Main")
+    local serverButton = mainGui:FindFirstChild("ServerButton") or mainGui:FindFirstChild("Servers")
     
-    -- البحث في كل واجهات اللعبة عن أزرار الانضمام للسيرفرات
-    for _, obj in pairs(Player.PlayerGui:GetDescendants()) do
-        if obj:IsA("TextButton") and (obj.Text == "Join" or obj.Name == "JoinButton") then
-            -- نأخذ الأزرار الظاهرة فقط
-            if obj.Visible then
+    -- محاولة فتح قائمة السيرفرات وإغلاقها إذا كانت فارغة
+    for attempt = 1, 3 do
+        local joinButtons = {}
+        for _, obj in pairs(Player.PlayerGui:GetDescendants()) do
+            if obj:IsA("TextButton") and (obj.Text == "Join" or obj.Name == "JoinButton") and obj.Visible then
                 table.insert(joinButtons, obj)
             end
         end
-    end
-    
-    if #joinButtons > 0 then
-        -- اختيار سيرفر من المنتصف أو النهاية (كما اقترحت)
-        local startIndex = math.floor(#joinButtons / 2)
-        if startIndex < 1 then startIndex = 1 end
-        local randomBtn = joinButtons[math.random(startIndex, #joinButtons)]
         
-        print("[Fruit-Radar] جاري محاكاة ضغطة زر 'Join' على سيرفر من القائمة...")
-        
-        -- إجبار اللعبة على تنفيذ أمر الزر (محاكاة الضغطة)
-        if getconnections then
-            for _, connection in pairs(getconnections(randomBtn.MouseButton1Click)) do
-                connection:Fire()
+        -- إذا وجد أزرار، يختار واحداً من المنتصف
+        if #joinButtons > 0 then
+            local startIndex = math.floor(#joinButtons / 2)
+            local randomBtn = joinButtons[math.random(startIndex, #joinButtons)]
+            print("🔄 جاري الانضمام لسيرفر جديد...")
+            if getconnections then
+                for _, conn in pairs(getconnections(randomBtn.MouseButton1Click)) do conn:Fire() end
+            elseif firesignal then
+                firesignal(randomBtn.MouseButton1Click)
             end
-        elseif firesignal then
-            firesignal(randomBtn.MouseButton1Click)
+            return
         else
-            print("⚠️ مشغلك لا يدعم محاكاة النقرات، يرجى الضغط يدوياً.")
+            print("⚠️ القائمة فارغة أو لم تفتح، جاري تحديثها (المحاولة " .. attempt .. ")")
+            -- محاكاة الضغط على زر السيرفرات لفتح/إغلاق القائمة
+            if serverButton and getconnections then
+                for _, conn in pairs(getconnections(serverButton.MouseButton1Click)) do conn:Fire() end
+            end
+            task.wait(3) -- انتظار تحميل الأسماء
         end
-    else
-        print("[Fruit-Radar] ⚠️ لم أجد أزرار السيرفرات.")
-        print("💡 تلميح: افتح قائمة السيرفرات يدوياً مرة واحدة ليتمكن السكربت من رؤية الأزرار.")
     end
+    print("❌ فشل إيجاد أزرار السيرفرات، يرجى فتح القائمة يدوياً مرة واحدة.")
 end
 
--- [4] حلقة التشغيل الرئيسية
+-- ==========================================
+-- [6] حلقة التشغيل الرئيسية
+-- ==========================================
 task.spawn(function()
-    task.wait(8) -- انتظار تحميل الخريطة لمنع الكراش
+    task.wait(5)
+    AutoSelectTeam() -- اختيار فريق تلقائياً عند الدخول
+    task.wait(5) -- انتظار تحميل الماب بعد النزول
     
     while _G.AutoHop do
-        if scanAndCollect() then
-            -- إذا وجد الفاكهة يوقف القفز فوراً
+        if scanForMythical() then
             _G.AutoHop = false
-            print("멈 تم إيقاف القفز، الفاكهة أمامك!")
+            ToggleButton.Text = "تم إيجاد وتخزين فاكهة!"
+            ToggleButton.BackgroundColor3 = Color3.fromRGB(241, 196, 15)
             break
         else
-            print("[Fruit-Radar] لا يوجد شيء.. جاري الضغط على سيرفر آخر.")
-            task.wait(2)
-            clickInGameServerJoin()
-            task.wait(25) -- انتظار طويل لكي يأخذ أمر النقل وقته دون كراش
+            print("[Fruit-Radar] لا يوجد ميثيك، جاري تغيير السيرفر...")
+            SmartUIHop()
+            task.wait(20) -- مهلة للانتقال
         end
     end
 end)
