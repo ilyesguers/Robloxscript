@@ -16,6 +16,14 @@ local Config = SP.Config
 -- فتح الصفحة الرئيسية
 Lib.SwitchTo(Lib.Pages[1])
 
+-- التحقق من اللعبة المستهدفة (تنبيه فقط — لا يوقف التشغيل)
+pcall(function()
+    local gid = game.GameId or game.PlaceId
+    if gid and Config.GameId and tostring(gid) ~= tostring(Config.GameId) then
+        Utils.Notify("SpeedPlus ⚠️", "هذه اللعبة ليست الهدف المخصص! الميزات قد لا تعمل.")
+    end
+end)
+
 -- إظهار الزر العائم بأنيميشن
 task.spawn(function()
     task.wait(0.4)

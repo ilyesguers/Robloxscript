@@ -12,6 +12,10 @@ SP.Config = {
     Version   = "0.4",
     WindowName = "SpeedPlus",
 
+    -- هوية اللعبة المستهدفة (للتحقق من التوافق)
+    GameId    = 9584852943,  -- Universe ID (game.GameId)
+    PlaceId   = 95082159892680, -- Place ID
+
     -- رابط المشروع على GitHub (يستخدمه اللودر)
     BaseUrl   = "https://raw.githubusercontent.com/ilyesguers/Robloxscript/main/SpeedPlus/",
     Modules   = {
