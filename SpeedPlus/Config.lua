@@ -9,8 +9,10 @@ local SP = env.SpeedPlus or {}
 env.SpeedPlus = SP
 
 SP.Config = {
-    Version   = "0.4",
+    Version   = "0.5",
     WindowName = "SpeedPlus",
+
+    -- ملاحظة: المشروع دُمج في main ✅ (2026-08-18) — التعاون مستمر على الفرع
 
     -- هوية اللعبة المستهدفة (للتحقق من التوافق)
     GameId    = 9584852943,  -- Universe ID (game.GameId)
